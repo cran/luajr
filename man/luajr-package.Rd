@@ -6,9 +6,9 @@
 \alias{luajr-package}
 \title{luajr: LuaJIT Scripting}
 \description{
-'luajr' provides an interface to Mike Pall's LuaJIT (\url{https://luajit.org}),
-a just-in-time compiler for the Lua scripting language
-(\url{https://www.lua.org}). It allows users to run Lua code from R.
+'luajr' provides an interface to \href{https://luajit.org}{LuaJIT}, a
+just-in-time compiler for the \href{https://www.lua.org}{Lua scripting language}.
+It allows users to run Lua code from R.
 }
 \section{The R API}{
 
@@ -18,6 +18,7 @@ a just-in-time compiler for the Lua scripting language
 \item \code{\link[=lua_shell]{lua_shell()}}: run an interactive Lua shell
 \item \code{\link[=lua_open]{lua_open()}}: create a new Lua state
 \item \code{\link[=lua_reset]{lua_reset()}}: reset the default Lua state
+\item \code{\link[=lua_parallel]{lua_parallel()}}: run Lua code in parallel
 }
 }
 
@@ -36,12 +37,16 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Nicholas Davies \email{nicholas.davies@lshtm.ac.uk} (\href{https://orcid.org/0000-0002-1740-1412}{ORCID}) [copyright holder]
+\strong{Maintainer}: Nicholas Davies \email{nicholas.davies@lshtm.ac.uk} (\href{https://orcid.org/0000-0002-1740-1412}{ORCID}) (Author of the R package wrapper) [contributor, copyright holder]
+
+Authors:
+\itemize{
+  \item Mike Pall (Author of the embedded LuaJIT compiler) [copyright holder]
+}
 
 Other contributors:
 \itemize{
-  \item Mike Pall (Author of the embedded LuaJIT compiler) [copyright holder]
-  \item Lua.org, PUC-Rio (Authors of the Lua scripting language) [copyright holder]
+  \item Lua.org, PUC-Rio (Copyright holders over portions of Lua source code included in LuaJIT) [copyright holder]
 }
 
 }

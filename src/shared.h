@@ -10,6 +10,7 @@ extern lua_State* L0;
 extern int luajr_construct_ref;
 extern int luajr_construct_vec;
 extern int luajr_construct_list;
+extern int luajr_construct_null;
 extern int luajr_return_info;
 extern int luajr_return_copy;
 
@@ -23,8 +24,8 @@ extern "C" {
 SEXP luajr_locate_dylib(SEXP path);
 SEXP luajr_locate_module(SEXP path);
 SEXP luajr_open();
-lua_State* luajr_newstate();
 SEXP luajr_reset();
+lua_State* luajr_newstate();
 lua_State* luajr_getstate(SEXP Lx);
 
 // Move values between R and Lua (push_to.cpp)
@@ -38,6 +39,9 @@ SEXP luajr_run_code(SEXP code, SEXP Lx);
 SEXP luajr_run_file(SEXP filename, SEXP Lx);
 SEXP luajr_func_create(SEXP code, SEXP Lx);
 SEXP luajr_func_call(SEXP fx, SEXP alist, SEXP acode, SEXP Lx);
+
+// Run Lua code in parallel (parallel.cpp)
+SEXP luajr_run_parallel(SEXP func, SEXP n, SEXP threads, SEXP pre);
 
 // Miscellaneous functions (setup.cpp)
 SEXP luajr_makepointer(void* ptr, int tag_code, void (*finalize)(SEXP));
@@ -53,4 +57,5 @@ enum
     REFERENCE_T = 0, VECTOR_T = 4, LIST_T = 8, NULL_T = 16
 };
 
-#define CheckSEXP(x, type, len) if (TYPEOF(x) != type || Rf_length(x) != len) { Rf_error("%s expects argument %s to be a length-%d of type %s", __func__, #x, len, Rf_type2char(TYPEOF(x))); }
+#define CheckSEXP(x, type)         if (TYPEOF(x) != type)                        { Rf_error("%s expects %s to be of type %s", __func__, #x, Rf_type2char(type)); }
+#define CheckSEXPLen(x, type, len) if (TYPEOF(x) != type || Rf_length(x) != len) { Rf_error("%s expects %s to be of length %d and type %s", __func__, #x, len, Rf_type2char(type)); }

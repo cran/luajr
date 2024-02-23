@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Interface with R from Lua</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Interface with R from Lua</h1>
+
+
+
+<p>Whenever the <code>luajr</code> R package opens a new Lua state, it
+opens all the <a href="https://www.lua.org/manual/5.1/manual.html#5">standard Lua
+libraries</a> in that state, as well as the <code>luajr</code> module,
+which is designed to provide some key capabilities for your Lua code to
+interface well with R code. This vignette documents the
+<code>luajr</code> module.</p>
+<div id="vector-types" class="section level1">
+<h1>Vector types</h1>
+<p>The vector types are modelled after C++’s <code>std::vector</code>
+class. A vector type is what you end up with if you pass an argument
+into a Lua function using <code>lua_func()</code> with arg code
+<code>&quot;v&quot;</code>, but you can also create new vectors within Lua.</p>
+<p>Like their C++ counterparts, vector types all maintain an internal
+“capacity” which is equal to or greater than their “length”, or actual
+number of elements. The exception is the character vector, which is
+implemented internally as a Lua table but has the same interface as the
+other vector types.</p>
+<p>Note that for vector types, indexes start at 1, not at 0. You must be
+very careful not to access or write out of these bounds, as the
+<code>luajr</code> module does <strong>not</strong> do bounds checking.
+Going out of bounds will cause crashes or other undefined behaviour.
+Unlike Lua tables, vector types can only be indexed with integers from 1
+to the vector length, not with strings or any other types.</p>
+<div id="vcreate" class="section level2">
+<h2>Creating and testing vector types</h2>
+<p><strong><code>luajr.logical(a, b)</code>,
+<code>luajr.integer(a, b)</code>, <code>luajr.numeric(a, b)</code>,
+<code>luajr.character(a, b)</code></strong></p>
+<p>These functions can be used to create “vector types” in Lua code. The
+meaning of <code>a</code> and <code>b</code> depends on their type. For
+example:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric<span class="op">()</span>     <span class="co">-- Empty numeric vector</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric<span class="op">(</span><span class="va">n</span><span class="op">,</span> <span class="va">x</span><span class="op">)</span> <span class="co">-- Size-n numeric vector, all entries equal to x</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric<span class="op">(</span><span class="va">v</span><span class="op">)</span>    <span class="co">-- Copied from vector v</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric<span class="op">(</span><span class="va">z</span><span class="op">)</span>    <span class="co">-- Copied from &quot;vector-ish&quot; object z</span></span></code></pre></div>
+<p>Above, <code>n</code> is a nonnegative number, <code>x</code> is a
+boolean, number, string (as appropriate for the vector type) or
+<code>nil</code>, <code>v</code> is another vector object of the same
+type, and <code>z</code> is a table, vector type, or reference type.</p>
+<p>If <code>x == nil</code> in the <code>(n, x)</code> form of the above
+functions, then the values of the vector are left uninitialized (except
+for <code>luajr.character</code>, where the values are set to the empty
+string).</p>
+<p><strong><code>luajr.is_logical(obj)</code>,
+<code>luajr.is_integer(obj)</code>, <code>luajr.is_numeric(obj)</code>,
+<code>luajr.is_character(obj)</code></strong></p>
+<p>Check whether a value <code>obj</code> is one of the corresponding
+vector types. These return <code>true</code> if <code>obj</code> is of
+the corresponding type, and <code>false</code> otherwise.</p>
+</div>
+<div id="vector-type-methods" class="section level2">
+<h2>Vector type methods</h2>
+<p>All the vector types have the following methods:</p>
+<p><strong><code>#v</code></strong></p>
+<p>Returns the length of the vector.</p>
+<p><strong><code>x = v[i]</code>, <code>v[i] = x</code></strong></p>
+<p>Get or set the <code>i</code>th element of the vector.</p>
+<p>Again: Note that for vector types, indexes start at 1, not at 0. You
+must be very careful not to access or write out of these bounds, as the
+<code>luajr</code> module does <strong>not</strong> do bounds checking.
+Going out of bounds will cause crashes or other undefined behaviour.
+Unlike Lua tables, vector types can only be indexed with integers from 1
+to the vector length, not with strings or any other types.</p>
+<p><strong><code>pairs(v)</code>, <code>ipairs(v)</code></strong></p>
+<p>Use with a Lua <code>for</code> loop to iterate over the values of
+the vector. For example:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="cf">for</span> <span class="va">i</span><span class="op">,</span><span class="va">x</span> <span class="kw">in</span> <span class="fu">pairs</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="cf">do</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>    <span class="fu">print</span><span class="op">(</span><span class="va">i</span><span class="op">,</span> <span class="va">x</span><span class="op">)</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
+<p>Note that for vector types, <code>pairs</code> and
+<code>ipairs</code> are interchangeable and the same loop above can be
+written as</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="cf">for</span> <span class="va">i</span> <span class="op">=</span> <span class="dv">1</span><span class="op">,</span> <span class="op">#</span><span class="va">v</span> <span class="cf">do</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>    <span class="fu">print</span><span class="op">(</span><span class="va">i</span><span class="op">,</span> <span class="va">v</span><span class="op">[</span><span class="va">i</span><span class="op">])</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
+<p><strong><code>v:assign(a, b)</code></strong></p>
+<p>Assign a new value to the vector; <code>a</code> and <code>b</code>
+have the same meaning as in the <a href="#vcreate">vector type
+constructors</a>.</p>
+<p><strong><code>v:print()</code></strong></p>
+<p>Print each value of the vector next to its index, each value on a new
+line.</p>
+<p><strong><code>v:concat(sep)</code></strong></p>
+<p>Returns a string comprised of the elements of the vector converted
+into strings and concatenated together with <code>sep</code> as a
+separator. If <code>sep</code> is missing, the default is
+<code>&quot;,&quot;</code>.</p>
+<p><strong><code>v:debug_str()</code></strong></p>
+<p>Returns a compact string representation of the vector, useful mainly
+for debugging. This contains the length of the vector, then the capacity
+of the vector, then each of the vector elements separated by commas.</p>
+<p><strong><code>v:reserve(n)</code></strong></p>
+<p>If <code>n</code> is larger than the vector’s current capacity,
+suggests that the vector be enlarged to a capacity of <code>n</code>.
+Otherwise, does nothing.</p>
+<p><strong><code>v:capacity()</code></strong></p>
+<p>Returns the capacity of the vector.</p>
+<p><strong><code>v:shrink_to_fit()</code></strong></p>
+<p>If the vector’s capacity is larger than its length, reallocates the
+vector so that its capacity is equal to its length.</p>
+<p><strong><code>v:clear()</code></strong></p>
+<p>Sets the size of the vector to 0.</p>
+<p><strong><code>v:resize(n, val)</code></strong></p>
+<p>Sets the size of the vector to <code>n</code>. If <code>n</code> is
+smaller than the vector’s current length, removes elements at the end of
+the vector. If <code>n</code> is larger than the vector’s current
+length, adds new elements at the end equal to <code>val</code>.
+<code>val</code> can be <code>nil</code> or missing.</p>
+<p><strong><code>v:push_back(val)</code></strong></p>
+<p>Adds <code>val</code> to the end of the vector.</p>
+<p><strong><code>v:pop_back()</code></strong></p>
+<p>Removes one element from the end of the vector.</p>
+<p><strong><code>v:insert(i, a, b)</code></strong></p>
+<p>Inserts new elements before position <code>i</code>, which must be
+between 1 and <code>#v + 1</code>. <code>a</code> and <code>b</code>
+have the same meaning as in the <a href="#vcreate">vector type
+constructors</a>.</p>
+<p><strong><code>v:erase(first, last)</code></strong></p>
+<p>Removes elements from position <code>first</code> to position
+<code>last</code>, inclusive (e.g. so that <code>v:erase(1, #v)</code>
+erases the whole vector). If <code>last</code> is <code>nil</code> or
+missing, just erases the single element at position
+<code>first</code>.</p>
+</div>
+</div>
+<div id="reference-types" class="section level1">
+<h1>Reference types</h1>
+<p>The reference types are similar to the vector types, but they are
+more “low-level” and hence are missing much of the functionality of the
+vector types. They map directly onto memory managed by R, so judicious
+use of reference types when passing to or returning from Lua can avoid
+unnecessary memory allocations and copies.</p>
+<p>Although reference types are missing lots of methods that the vector
+types have, they do have one feature that the vector types don’t have,
+namely that you can set and get the attributes associated with the
+underlying R value.</p>
+<p>A reference type is what you end up with if you pass an argument into
+a Lua function using <code>lua_func()</code> with arg code
+<code>&quot;r&quot;</code>, but you can also create new reference types within
+Lua.</p>
+<p>As with the vector types, indexes start at 1, not at 0, and you must
+be very careful not to access or write out of these bounds.</p>
+<p>Finally, because reference types depend upon R, they are not
+completely thread safe and therefore they cannot safely be used with
+<code>lua_parallel()</code>.</p>
+<div id="creating-and-testing-reference-types" class="section level2">
+<h2>Creating and testing reference types</h2>
+<p><strong><code>luajr.logical_r(a, b)</code>,
+<code>luajr.integer_r(a, b)</code>, <code>luajr.numeric_r(a, b)</code>,
+<code>luajr.character_r(a, b)</code></strong></p>
+<p>These functions can be used to create “vector types” in Lua code. The
+meaning of <code>a</code> and <code>b</code> depends on their type.
+Namely:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric_r<span class="op">(</span><span class="va">n</span><span class="op">,</span> <span class="va">x</span><span class="op">)</span> <span class="co">-- Size n, all entries equal to x if x ~= nil</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span>numeric_r<span class="op">(</span><span class="va">z</span><span class="op">)</span>    <span class="co">-- Copied from &quot;vector-ish&quot; object z</span></span></code></pre></div>
+<p>Above, <code>n</code> is a nonnegative number, <code>x</code> is a
+boolean, number, or string (as appropriate for the vector type) or
+<code>nil</code>, and <code>z</code> is a table, vector type, or
+reference type.</p>
+<p><strong><code>luajr.is_logical_r(obj)</code>,
+<code>luajr.is_integer_r(obj)</code>,
+<code>luajr.is_numeric_r(obj)</code>,
+<code>luajr.is_character_r(obj)</code></strong></p>
+<p>Check whether a value <code>obj</code> is one of the corresponding
+reference types. These return <code>true</code> if <code>obj</code> is
+of the corresponding type, and <code>false</code> otherwise.</p>
+</div>
+<div id="reference-type-methods" class="section level2">
+<h2>Reference type methods</h2>
+<p>All the reference types have the following methods:</p>
+<p><strong><code>#v</code></strong></p>
+<p>Returns the length of the referenced vector.</p>
+<p><strong><code>x = v[i]</code>, <code>v[i] = x</code></strong></p>
+<p>Get or set the <code>i</code>th element of the referenced vector.</p>
+<p><strong><code>pairs(v)</code>, <code>ipairs(v)</code></strong></p>
+<p>Use with a Lua <code>for</code> loop to iterate over the values of
+the vector.</p>
+<p><strong><code>x = v(attr)</code>,
+<code>v(attr, x)</code></strong></p>
+<p>Get or set the attribute named <code>attr</code>. The second form,
+with two arguments, sets the attribute to <code>x</code>. Note that even
+though you can get and manipulate the <code>names</code> attribute, you
+cannot access a reference vector’s elements by their names.</p>
+</div>
+</div>
+<div id="list-type" class="section level1">
+<h1>List type</h1>
+<p>A list is a special kind of Lua table that can be indexed either with
+positive integers or with strings. Unlike a Lua table, a list remembers
+the order in which you have added elements to it, like an R list
+does.</p>
+<div id="creating-and-testing-lists" class="section level2">
+<h2>Creating and testing lists</h2>
+<p><strong><code>luajr.list()</code></strong></p>
+<p>Creates a new, empty list.</p>
+<p><strong><code>luajr.is_list(obj)</code></strong></p>
+<p>Check whether a value <code>obj</code> is a list. Returns
+<code>true</code> if <code>obj</code> is a list, and <code>false</code>
+otherwise.</p>
+</div>
+<div id="list-methods" class="section level2">
+<h2>List methods</h2>
+<p>Lists have the following methods:</p>
+<p><strong><code>#v</code></strong></p>
+<p>Returns the length of the list, including both integer- and
+string-keyed entries. This differs from the behaviour of the
+<code>#</code> operator on normal Lua tables, which only report the
+number of integer-keyed entries.</p>
+<p><strong><code>x = v[i]</code>, <code>v[i] = x</code></strong></p>
+<p>Get or set element <code>i</code> of the list. <code>i</code> can be
+either a positive integer or a string. Note that you cannot write to any
+integer keys greater than <code>#v + 1</code>.</p>
+<p><strong><code>pairs(v)</code>, <code>ipairs(v)</code></strong></p>
+<p>Use with a Lua <code>for</code> loop to iterate over the values of
+the vector. Unlike with vector and reference types, <code>pairs</code>
+and <code>ipairs</code> are not exactly the same when applied to lists;
+the former will provide either string or number keys as you iterate
+through the list (strings if they are present, numbers otherwise) and
+the latter will give number keys only. Either one iterates through every
+element of the list and both iterate through the list in the same
+order.</p>
+<p><strong><code>x = v(attr)</code>,
+<code>v(attr, x)</code></strong></p>
+<p>Get or set the attribute named <code>attr</code>. The second form,
+with two arguments, sets the attribute to <code>x</code>. Note that, for
+a list, the <code>&quot;names&quot;</code> attribute is not a simple vector of
+names, like in R, but is an associative array linking keys to their
+indices. For example, for a list with elements <code>a = 1</code>,
+<code>2</code>, and <code>c = 3</code>, <code>v(&quot;names&quot;)</code> is equal
+to <code>{ &quot;a&quot; = 1, &quot;c&quot; = 3 }</code>. However, when a list is returned
+to R, its <code>&quot;names&quot;</code> attribute has the normal R format.</p>
+<p>Note that lists have this interface for setting and getting
+attributes, but unlike the reference types (which also have this
+capability), they are not internally managed by R. This means that they
+are safe to use with <code>lua_parallel()</code>, as long as they don’t
+contain any reference types.</p>
+</div>
+</div>
+<div id="data-frame-and-matrix-types" class="section level1">
+<h1>Data frame and matrix types</h1>
+<p>There are a handful of additional types based on the above types, but
+which have some special behaviour when returned to R.</p>
+<div id="data-frame" class="section level2">
+<h2>Data frame</h2>
+<p>A data frame can be created with</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="va">df</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>dataframe<span class="op">()</span></span></code></pre></div>
+<p>This is just a <code>luajr.list</code> with the <code>&quot;class&quot;</code>
+attribute set to <code>&quot;data.frame&quot;</code>. However, when a list with
+this class gets returned to R, it gets turned into a data frame.</p>
+</div>
+<div id="matrix" class="section level2">
+<h2>Matrix</h2>
+<p>A matrix can be created with</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="va">df</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>matrix_r<span class="op">(</span><span class="va">nrow</span><span class="op">,</span> <span class="va">ncol</span><span class="op">)</span></span></code></pre></div>
+<p>This is a special kind of <code>luajr.numeric_r</code> with the
+<code>&quot;dim&quot;</code> attribute set to
+<code>luajr.integer_r({ nrow, ncol })</code>. It gets recognized as a
+matrix when returned to R. However, you can only access elements with a
+single index that starts at 1 and goes in column-major order. So, for
+example, for a 2x2 matrix, the top-left element has index 1, bottom-left
+has index 2, top-right has index 3 and bottom-right has index 4.</p>
+<p>Note that it is a reference type.</p>
+</div>
+<div id="data-matrix" class="section level2">
+<h2>Data matrix</h2>
+<p>A data matrix can be created with</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="va">dm</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>datamatrix_r<span class="op">(</span><span class="va">nrow</span><span class="op">,</span> <span class="va">ncol</span><span class="op">,</span> <span class="va">names</span><span class="op">)</span></span></code></pre></div>
+<p>This is similar to <code>luajr.matrix_r</code>, but it has
+<code>names</code> as column names. <code>names</code> can be passed in
+as a Lua table (e.g. <code>{ &quot;foo&quot;, &quot;bar&quot; }</code>) or as a
+<code>luajr.character</code> or <code>luajr.character_r</code>
+object.</p>
+<p>Using a data matrix is very slightly faster than using a data frame
+because only one memory allocation needs to be made, but this difference
+is on the order of microseconds for normal sized data. Also, if you are
+just going to convert the returned matrix into a data frame anyway, you
+lose the speed advantage. So don’t worry about it too much.</p>
+<p>The column names can be get and set within Lua using the special
+attribute name <code>&quot;/matrix/colnames&quot;</code>.</p>
+</div>
+</div>
+<div id="constants" class="section level1">
+<h1>Constants</h1>
+<p>The following constants are defined in the <code>luajr</code>
+table:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">integer_</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">real_</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">character_</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NULL</span></span></code></pre></div>
+<p>Note that Lua’s semantics in dealing with logical types and NA values
+are very different from R’s semantics. Lua does not “understand” NA
+values in the same way that R does, and it sees the R logical type as
+fundamentally an integer, not a boolean.</p>
+<p>Specifically, whereas in R you could do the following:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>x <span class="ot">=</span> <span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">FALSE</span>, <span class="cn">NA</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="cf">if</span> (x[<span class="dv">1</span>]) <span class="fu">print</span>(<span class="st">&quot;First element of x is TRUE!&quot;</span>)</span></code></pre></div>
+<p>in Lua you have to do this:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span> <span class="op">})</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="cf">if</span> <span class="va">x</span><span class="op">[</span><span class="dv">1</span><span class="op">]</span> <span class="op">==</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span> <span class="cf">then</span> <span class="fu">print</span><span class="op">(</span><span class="st">&quot;First element of x is TRUE!&quot;</span><span class="op">)</span> <span class="cf">end</span></span></code></pre></div>
+<p>This is because under the hood, R’s TRUE is defined as the integer 1
+(though any nonzero integer besides NA will also test as TRUE), FALSE is
+defined as 0, and NA (when logical or integer) is defined as a special
+‘flag’ value of -2147483648 (i.e. -2^31). However, in Lua, anything
+other than <code>nil</code> or <code>false</code> evaluates as
+<code>true</code>, meaning that the following Lua code</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span> <span class="op">})</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="cf">for</span> <span class="va">i</span> <span class="op">=</span> <span class="dv">1</span><span class="op">,</span> <span class="op">#</span><span class="va">x</span> <span class="cf">do</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>    <span class="cf">if</span> <span class="va">x</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="cf">then</span> <span class="fu">print</span><span class="op">(</span><span class="st">&quot;Element&quot;</span><span class="op">,</span> <span class="va">i</span><span class="op">,</span> <span class="st">&quot;of x is TRUE!&quot;</span><span class="op">)</span> <span class="cf">end</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
+<p>will incorrectly claim that <code>luajr.TRUE</code>,
+<code>luajr.FALSE</code>, and <code>luajr.NA_logical_</code> are all
+“<code>TRUE</code>”. So, instead, explicitly set logical values to
+either <code>luajr.TRUE</code>, or <code>luajr.FALSE</code>, or
+<code>luajr.NA_logical_</code>, and explicitly test them against the
+same values.</p>
+<p>Note that the different NA constants are not interchangeable. So,
+when testing for NA in Lua, you have to check if a value is equal to
+(<code>==</code>) or not equal to (<code>~=</code>) the corresponding NA
+constant above, depending on the type of the variable in question.</p>
+<p>All of this only applies to the vector and reference types described
+above. Lua also has its own boolean type (with possible values
+<code>true</code> and <code>false</code>) which will never compare equal
+with either <code>luajr.TRUE</code>, <code>luajr.FALSE</code> or any of
+the NA values. A Lua string can never compare equal with
+<code>luajr.NA_character_</code>, but conversely a Lua number may
+sometimes compare equal with <code>luajr.NA_logical_</code>,
+<code>luajr.NA_integer_</code>, or <code>luajr.NA_real_</code>, so do be
+careful not to mix Lua types and these R constants.</p>
+<p>Finally, <code>luajr.NULL</code> can be used to represent a
+<code>NULL</code> value, either on its own or as part of a table or
+<code>luajr.list</code> that gets returned to R. If you pass NULL in to
+Lua through arg code <code>&quot;s&quot;</code>, it will come out as
+<code>nil</code> in Lua; but if you use arg code <code>&quot;r&quot;</code> or
+<code>&quot;v&quot;</code>, it will come out as <code>luajr.NULL</code>.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

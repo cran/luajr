@@ -29,6 +29,10 @@ local luajr_dylib_path = ({...})[1]
 -- Null pointer object
 local nullptr = ffi.cast("void*", 0)
 
+-- "Hidden" sentinel object
+ffi.cdef[[ typedef struct { int a; } HIDDEN_t; ]]
+local hidden = ffi.new("HIDDEN_t")
+
 
 ---------------------
 -- 1. INTERNAL API --
@@ -59,6 +63,9 @@ typedef struct { int* p;    double n; double c; } logical_vt;
 typedef struct { int* p;    double n; double c; } integer_vt;
 typedef struct { double* p; double n; double c; } numeric_vt;
 
+// Dummy NULL type
+typedef struct { int _; } NULL_t;
+
 // NA values
 extern int TRUE_logical;
 extern int FALSE_logical;
@@ -81,6 +88,7 @@ void AllocInteger(integer_rt* x, ptrdiff_t size);
 void AllocIntegerCompact1N(integer_rt* x, ptrdiff_t N);
 void AllocNumeric(numeric_rt* x, ptrdiff_t size);
 void AllocCharacter(character_rt* x, ptrdiff_t size);
+void AllocCharacterNA(character_rt* x, ptrdiff_t size);
 void AllocCharacterTo(character_rt* x, ptrdiff_t size, const char* v);
 void Release(SEXP s);
 
@@ -131,17 +139,19 @@ function package.preload.luajr()
     return luajr
 end
 
--- TRUE, FALSE, NA definitions
-luajr.TRUE          = internal.TRUE_logical;
-luajr.FALSE         = internal.FALSE_logical;
-luajr.NA_logical_   = internal.NA_logical;
-luajr.NA_integer_   = internal.NA_integer;
-luajr.NA_real_      = internal.NA_real;
-luajr.NA_character_ = internal.NA_character;
+-- TRUE, FALSE, NA, NULL definitions
+luajr.TRUE          = internal.TRUE_logical
+luajr.FALSE         = internal.FALSE_logical
+luajr.NA_logical_   = internal.NA_logical
+luajr.NA_integer_   = internal.NA_integer
+luajr.NA_real_      = internal.NA_real
+luajr.NA_character_ = internal.NA_character
+luajr.NULL          = ffi.new("NULL_t")
 
--- Forward declarations of attribute set/getters
+-- Forward declarations
 local sexp_get_attr
 local sexp_set_attr
+local vectorish
 
 
 ------------------------
@@ -153,14 +163,14 @@ local mt_basic_r = function(allocator)
     local mt = {
         __new = function(ctype, init1, init2)
             local self = ffi.new(ctype)
-            if init1 == nullptr then
+            if init1 == hidden then
                 -- do nothing
             elseif type(init1) == "number" then
                 allocator(self, init1)
                 if init2 ~= nil then
                     for i = 1,#self do self._p[i] = init2 end
                 end
-            elseif #init1 ~= nil then
+            elseif vectorish(init1) then
                 allocator(self, #init1)
                 for i = 1,#self do self._p[i] = init1[i] end
             else
@@ -216,16 +226,18 @@ end
 local mt_character_r = {
     __new = function(ctype, init1, init2)
         local self = ffi.new(ctype)
-        if init1 == nullptr then
+        if init1 == hidden then
             -- do nothing
         elseif type(init1) == "number" then
             if init2 == nil then
                 internal.AllocCharacter(self, init1)
+            elseif init2 == luajr.NA_character_ then
+                internal.AllocCharacterNA(self, init1)
             else
                 internal.AllocCharacterTo(self, init1, init2)
             end
-        elseif #init1 ~= nil then
-            allocator(self, #init1)
+        elseif vectorish(init1) then
+            internal.AllocCharacter(self, #init1)
             for i = 1,#self do self[i] = init1[i] end
         else
             error("Reference type must be initialised.")
@@ -242,11 +254,20 @@ local mt_character_r = {
     end,
 
     __index = function(x, k)
-        return ffi.string(internal.GetCharacterElt(x._s, k - 1))
+        local v = internal.GetCharacterElt(x._s, k - 1)
+        if v == nullptr then
+            return luajr.NA_character_
+        else
+            return ffi.string(v)
+        end
     end,
 
     __newindex = function(x, k, v)
-        internal.SetCharacterElt(x._s, k - 1, v)
+        if v == luajr.NA_character_ then
+            internal.SetCharacterElt(x._s, k - 1, nullptr)
+        else
+            internal.SetCharacterElt(x._s, k - 1, v)
+        end
     end,
 
     __call = function(x, k, v)
@@ -309,10 +330,12 @@ local vec_realloc = function(p, vtype, ptype, nelem, init1, init2)
     end
 
     -- initialize according to init1 and init2
-    if (type(init1) == "number" or type(init1) == "boolean") and init2 == nil then
+    if init1 == nil and init2 == nil then
+        -- do nothing
+    elseif (type(init1) == "number" or type(init1) == "boolean") and init2 == nil then
         -- number, nil: fill with number
         for i = 1,nelem do new_p[i] = init1 end
-    elseif type(init1) == "table" then
+    elseif vectorish(init1) then
         -- table, any: fill with table, only the first init2 entries if provided
         for i = 1,init2 or #init1 do new_p[i] = init1[i] end
     elseif ffi.istype(ptype, init1) then
@@ -350,25 +373,17 @@ local mt_basic_v = function(ct)
         assign = function(self, a, b)
             if a == nil and b == nil then
                 self.n = 0
-            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean") then
+            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean" or b == nil) then
                 -- a copies of b
                 if a <= self.c then
-                    for i = 1,a do self.p[i] = b end
+                    if b ~= nil then
+                        for i = 1,a do self.p[i] = b end
+                    end
                     self.n = a
                 else
                     self.p = vec_realloc(self.p, vtype, ptype, a, b)
                     self.n = a
                     self.c = a
-                end
-            elseif type(a) == "table" and b == nil then
-                -- from table initializer
-                if #a <= self.c then
-                    for i = 1,#a do self.p[i] = a[i] end
-                    self.n = #a
-                else
-                    self.p = vec_realloc(self.p, vtype, ptype, #a, a)
-                    self.n = #a
-                    self.c = #a
                 end
             elseif ffi.istype(self, a) and b == nil then
                 -- from vector
@@ -379,6 +394,16 @@ local mt_basic_v = function(ct)
                     self.p = vec_realloc(self.p, vtype, ptype, a.n, a.p)
                     self.n = a.n
                     self.c = a.n
+                end
+            elseif vectorish(a) and b == nil then
+                -- from vector-ish object
+                if #a <= self.c then
+                    for i = 1,#a do self.p[i] = a[i] end
+                    self.n = #a
+                else
+                    self.p = vec_realloc(self.p, vtype, ptype, #a, a)
+                    self.n = #a
+                    self.c = #a
                 end
             else
                 error("cannot use vector:assign with argument types " ..
@@ -393,6 +418,7 @@ local mt_basic_v = function(ct)
         end,
 
         concat = function(self, sep)
+            sep = sep or ","
             local str = ""
             for i=1,#self do
                 if sep ~= nil and i ~= #self then
@@ -492,18 +518,6 @@ local mt_basic_v = function(ct)
                     self.c = self.n + a
                     self.n = self.n + a
                 end
-            elseif type(a) == "table" and b == nil then
-                -- from table initializer
-                if self.n + #a <= self.c then
-                    for j = self.n,i,-1 do self.p[j + #a] = self.p[j] end
-                    for j = 1,#a do self.p[j + i - 1] = a[j] end
-                    self.n = self.n + #a
-                else
-                    self.p = vec_realloc(self.p, vtype, ptype, self.n + #a, i, #a)
-                    for j = 1,#a do self.p[j + i - 1] = a[j] end
-                    self.c = self.n + #a
-                    self.n = self.n + #a
-                end
             elseif ffi.istype(self, a) and b == nil then
                 -- from vector
                 if self.n + #a <= self.c then
@@ -513,6 +527,18 @@ local mt_basic_v = function(ct)
                 else
                     self.p = vec_realloc(self.p, vtype, ptype, self.n + #a, i, #a)
                     ffi.copy(self.p + i, a.p + 1, ffi.sizeof(vtype, #a))
+                    self.c = self.n + #a
+                    self.n = self.n + #a
+                end
+            elseif vectorish(a) and b == nil then
+                -- from vector-ish object
+                if self.n + #a <= self.c then
+                    for j = self.n,i,-1 do self.p[j + #a] = self.p[j] end
+                    for j = 1,#a do self.p[j + i - 1] = a[j] end
+                    self.n = self.n + #a
+                else
+                    self.p = vec_realloc(self.p, vtype, ptype, self.n + #a, i, #a)
+                    for j = 1,#a do self.p[j + i - 1] = a[j] end
                     self.c = self.n + #a
                     self.n = self.n + #a
                 end
@@ -538,21 +564,21 @@ local mt_basic_v = function(ct)
                 self.p = nullptr
                 self.n = 0
                 self.c = 0
-            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean") then
+            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean" or b == nil) then
                 -- a copies of b
                 self.p = vec_realloc(nullptr, vtype, ptype, a, b)
                 self.n = a
                 self.c = a
-            elseif type(a) == "table" and b == nil then
-                -- from table initializer
-                self.p = vec_realloc(nullptr, vtype, ptype, #a, a)
-                self.n = #a
-                self.c = #a
             elseif ffi.istype(ctype, a) and b == nil then
                 -- from vector to copy
                 self.p = vec_realloc(nullptr, vtype, ptype, a.n, a.p)
                 self.n = a.n
                 self.c = a.n
+            elseif vectorish(a) and b == nil then
+                -- from vector-ish object
+                self.p = vec_realloc(nullptr, vtype, ptype, #a, a)
+                self.n = #a
+                self.c = #a
             else
                 error("cannot construct vector with argument types " ..
                     type(a) .. ", " .. type(b) .. ".", 2)
@@ -601,6 +627,8 @@ end
 local tostring2 = function(v)
     if v == luajr.NA_character_ then
         return luajr.NA_character_
+    elseif v == nil then
+        return ""
     else
         return tostring(v)
     end
@@ -710,14 +738,14 @@ new_character_v = function(a, b)
         -- a copies of b
         t = table.new(a, 0)
         for i=1,a do t[i] = tostring2(b) end
-    elseif type(a) == "table" and b == nil then
-        -- from table initializer
-        t = table.new(#a, 0)
-        for i=1,#a do t[i] = tostring2(a[i]) end
     elseif getmetatable(a) == mt_character_v and b == nil then
         -- from vector to copy
         t = table.new(#a, 0)
         for i=1,#a do t[i] = a[i] end
+    elseif vectorish(a) and b == nil then
+        -- from vector-ish object
+        t = table.new(#a, 0)
+        for i=1,#a do t[i] = tostring2(a[i]) end
     else
         error("cannot construct character vector with argument types " ..
             type(a) .. ", " .. type(b) .. ".", 2)
@@ -894,7 +922,7 @@ local vec_set = {
 --   ud = SEXP to be referenced
 --   typecode = e.g. internal.LOGICAL_R, etc
 luajr.construct_ref = function(ud, typecode)
-    local x = ref_type[typecode](nullptr)
+    local x = ref_type[typecode](hidden)
     ref_set[typecode](x, ud)
     return x
 end
@@ -931,6 +959,11 @@ luajr.construct_list = function(elements, names)
     return list
 end
 
+-- Construct NULL.
+luajr.construct_null = function()
+    return luajr.NULL
+end
+
 
 --------------------
 -- 7. RETURN TO R --
@@ -954,6 +987,7 @@ function luajr.return_info(obj)
     elseif luajr.is_character(obj)      then return internal.CHARACTER_V, #obj
     elseif luajr.is_list(obj)           then return internal.LIST_T, #obj
     elseif obj == nullptr               then return internal.NULL_T, 0
+    elseif ffi.istype(luajr.NULL, obj)  then return internal.NULL_T, 0
     end
 
     return nil, nil
@@ -996,7 +1030,7 @@ end
 sexp_get_attr = function(s, k)
     local typecode = internal.GetAttrType(s, k)
     if typecode == internal.NULL_T then return nil end
-    local x = ref_type[typecode](nullptr)
+    local x = ref_type[typecode](hidden)
     ref_set[typecode](x, internal.GetAttrSEXP(s, k))
     return x
 end
@@ -1017,21 +1051,23 @@ sexp_set_attr = function(s, k, v)
     end
 end
 
--- dataframe type: specify number of rows
-function luajr.dataframe(nrow)
+-- Does obj have indexing and length capabilities?
+vectorish = function(obj)
+    return type(obj) == "table" or luajr.is_numeric_r(obj) or luajr.is_numeric(obj) or
+        luajr.is_integer_r(obj) or luajr.is_integer(obj) or luajr.is_character_r(obj) or
+            luajr.is_logical_r(obj) or luajr.is_logical(obj)
+end
+
+-- dataframe type
+function luajr.dataframe()
     local df = luajr.list()
     df[0].class = "data.frame"
-
-    -- Make rownames
-    local rownames = luajr.integer_r(nullptr)
-    internal.AllocIntegerCompact1N(rownames, nrow)
-    df[0]["row.names"] = rownames
 
     return df
 end
 
--- matrix type: specify nrow and ncol
-function luajr.matrix(nrow, ncol)
+-- matrix reference type: specify nrow and ncol
+function luajr.matrix_r(nrow, ncol)
     local m = luajr.numeric_r(nrow * ncol, 0.0)
 
     -- Make dimensions
@@ -1043,12 +1079,12 @@ function luajr.matrix(nrow, ncol)
     return m
 end
 
--- datamatrix type: specify nrow, ncol, and column names
-function luajr.datamatrix(nrow, ncol, names)
-    local m = luajr.matrix(nrow, ncol)
+-- datamatrix reference type: specify nrow, ncol, and column names
+function luajr.datamatrix_r(nrow, ncol, names)
+    local m = luajr.matrix_r(nrow, ncol)
 
     -- Make column names
-    if #names > ncol then error("Supplied more names than columns to luajr.datamatrix.") end
+    if #names > ncol then error("Supplied more names than columns to luajr.datamatrix_r.") end
     local colnames = luajr.character_r(ncol)
     for i = 1,#names do colnames[i] = names[i] end
     m("/matrix/colnames", colnames)

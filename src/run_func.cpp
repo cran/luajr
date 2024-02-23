@@ -7,7 +7,6 @@
 #include <string>
 extern "C" {
 #include "lua.h"
-#include "lualib.h"
 #include "lauxlib.h"
 }
 #define R_NO_REMAP
@@ -28,7 +27,7 @@ static void finalize_registry_entry(SEXP xptr)
 // Run the specified Lua code.
 extern "C" SEXP luajr_run_code(SEXP code, SEXP Lx)
 {
-    CheckSEXP(code, STRSXP, 1);
+    CheckSEXPLen(code, STRSXP, 1);
 
     // Get Lua state
     lua_State* L = luajr_getstate(Lx);
@@ -50,7 +49,7 @@ extern "C" SEXP luajr_run_code(SEXP code, SEXP Lx)
 // Run the specified Lua file.
 extern "C" SEXP luajr_run_file(SEXP filename, SEXP Lx)
 {
-    CheckSEXP(filename, STRSXP, 1);
+    CheckSEXPLen(filename, STRSXP, 1);
 
     // Get Lua state
     lua_State* L = luajr_getstate(Lx);
@@ -72,7 +71,7 @@ extern "C" SEXP luajr_run_file(SEXP filename, SEXP Lx)
 // Create a Lua function
 extern "C" SEXP luajr_func_create(SEXP code, SEXP Lx)
 {
-    CheckSEXP(code, STRSXP, 1);
+    CheckSEXPLen(code, STRSXP, 1);
 
     // Get Lua state
     lua_State* L = luajr_getstate(Lx);
@@ -92,9 +91,9 @@ extern "C" SEXP luajr_func_create(SEXP code, SEXP Lx)
 
     // Handle mistakes
     if (nret != 1)
-        Rf_error("lua_func expects `code' to evaluate to one value, not %d.", nret);
+        Rf_error("lua_func expects `func' to evaluate to one value, not %d.", nret);
     if (lua_type(L, -1) != LUA_TFUNCTION)
-        Rf_error("lua_func expects `code' to evaluate to a function, not a %s.", lua_typename(L, lua_type(L, -1)));
+        Rf_error("lua_func expects `func' to evaluate to a function, not a %s.", lua_typename(L, lua_type(L, -1)));
 
     // Create the registry entry with the value on the top of the stack
     RegistryEntry* re = new RegistryEntry(L);
@@ -112,9 +111,8 @@ extern "C" SEXP luajr_func_call(SEXP fx, SEXP alist, SEXP acode, SEXP Lx)
     // Check args
     if (!re)
         Rf_error("luajr_func_call expects a valid registry entry.");
-    if (TYPEOF(alist) != VECSXP)
-        Rf_error("luajr_func_call expects alist to be a list.");
-    CheckSEXP(acode, STRSXP, 1);
+    CheckSEXP(alist, VECSXP);
+    CheckSEXPLen(acode, STRSXP, 1);
 
     // Get Lua state
     lua_State* L = luajr_getstate(Lx);

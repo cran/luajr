@@ -5,18 +5,34 @@ extern "C" {
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-#include "luajit_rolling.h"
 }
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
 
-// luajr Lua module API registry keys
+// luajr Lua module API registry keys (registered by address)
 int luajr_construct_ref = 0;
 int luajr_construct_vec = 0;
 int luajr_construct_list = 0;
+int luajr_construct_null = 0;
 int luajr_return_info = 0;
 int luajr_return_copy = 0;
+
+// luajr module functions to register
+struct RegistryFunc { void* key; const char* name; };
+static const RegistryFunc luajr_registry_funcs[] =
+{
+    { (void*)&luajr_construct_ref,  "construct_ref" },
+    { (void*)&luajr_construct_vec,  "construct_vec" },
+    { (void*)&luajr_construct_list, "construct_list" },
+    { (void*)&luajr_construct_null, "construct_null" },
+    { (void*)&luajr_return_info,    "return_info" },
+    { (void*)&luajr_return_copy,    "return_copy" },
+    { 0, 0 }
+};
+
+// For luajr_open and luajr_getstate's use of external pointers
+static const int LUAJR_STATE_CODE = 0x7CA57A7E;
 
 // Path to luajr dylib
 static std::string luajr_dylib_path;
@@ -30,7 +46,7 @@ static std::string luajr_bytecode;
 // Provide path to luajr dylib
 extern "C" SEXP luajr_locate_dylib(SEXP path)
 {
-    CheckSEXP(path, STRSXP, 1);
+    CheckSEXPLen(path, STRSXP, 1);
     luajr_dylib_path = CHAR(STRING_ELT(path, 0));
     return R_NilValue;
 }
@@ -38,13 +54,38 @@ extern "C" SEXP luajr_locate_dylib(SEXP path)
 // Provide path to luajr module source
 extern "C" SEXP luajr_locate_module(SEXP path)
 {
-    CheckSEXP(path, STRSXP, 1);
+    CheckSEXPLen(path, STRSXP, 1);
     luajr_module_path = CHAR(STRING_ELT(path, 0));
     return R_NilValue;
 }
 
-// For luajr_open and luajr_getstate's use of external pointers
-static const int LUAJR_STATE_CODE = 0x7CA57A7E;
+// Destroy a Lua state pointed to by an R external pointer when it is no longer
+// needed (i.e. at program exit or garbage collection of the R pointer).
+static void finalize_lua_state(SEXP xptr)
+{
+    lua_State* L = reinterpret_cast<lua_State*>(R_ExternalPtrAddr(xptr));
+    RegistryEntry::DisarmAll(L);
+    lua_close(L);
+    R_ClearExternalPtr(xptr);
+}
+
+// Create a new Lua state
+extern "C" SEXP luajr_open()
+{
+    return luajr_makepointer(luajr_newstate(), LUAJR_STATE_CODE, finalize_lua_state);
+}
+
+// Reset the default Lua state
+extern "C" SEXP luajr_reset()
+{
+    if (L0)
+    {
+        RegistryEntry::DisarmAll(L0);
+        lua_close(L0);
+        L0 = 0;
+    }
+    return R_NilValue;
+}
 
 // Helper function to create a fresh Lua state with the required libraries
 // and with the JIT compiler loaded.
@@ -86,25 +127,13 @@ extern "C" lua_State* luajr_newstate()
     // Save a few key luajr functions to the registry
     lua_getglobal(l, "luajr");
 
-    lua_pushlightuserdata(l, (void*)&luajr_construct_ref);
-    lua_getfield(l, -2, "construct_ref");
-    lua_rawset(l, LUA_REGISTRYINDEX);
-
-    lua_pushlightuserdata(l, (void*)&luajr_construct_vec);
-    lua_getfield(l, -2, "construct_vec");
-    lua_rawset(l, LUA_REGISTRYINDEX);
-
-    lua_pushlightuserdata(l, (void*)&luajr_construct_list);
-    lua_getfield(l, -2, "construct_list");
-    lua_rawset(l, LUA_REGISTRYINDEX);
-
-    lua_pushlightuserdata(l, (void*)&luajr_return_info);
-    lua_getfield(l, -2, "return_info");
-    lua_rawset(l, LUA_REGISTRYINDEX);
-
-    lua_pushlightuserdata(l, (void*)&luajr_return_copy);
-    lua_getfield(l, -2, "return_copy");
-    lua_rawset(l, LUA_REGISTRYINDEX);
+    for (unsigned int i = 0; luajr_registry_funcs[i].key != 0; ++i)
+    {
+        // Push key, get function from luajr module, register
+        lua_pushlightuserdata(l, luajr_registry_funcs[i].key);
+        lua_getfield(l, -2, luajr_registry_funcs[i].name);
+        lua_rawset(l, LUA_REGISTRYINDEX);
+    }
 
     lua_pop(l, 1); // luajr
 
@@ -113,34 +142,6 @@ extern "C" lua_State* luajr_newstate()
     lua_setfield(l, LUA_REGISTRYINDEX, "luajrx");
 
     return l;
-}
-
-// Destroy a Lua state pointed to by an R external pointer when it is no longer
-// needed (i.e. at program exit or garbage collection of the R pointer).
-static void finalize_lua_state(SEXP xptr)
-{
-    lua_State* L = reinterpret_cast<lua_State*>(R_ExternalPtrAddr(xptr));
-    RegistryEntry::DisarmAll(L);
-    lua_close(L);
-    R_ClearExternalPtr(xptr);
-}
-
-// Create a new Lua state
-extern "C" SEXP luajr_open()
-{
-    return luajr_makepointer(luajr_newstate(), LUAJR_STATE_CODE, finalize_lua_state);
-}
-
-// Reset the default Lua state
-extern "C" SEXP luajr_reset()
-{
-    if (L0)
-    {
-        RegistryEntry::DisarmAll(L0);
-        lua_close(L0);
-        L0 = 0;
-    }
-    return R_NilValue;
 }
 
 // Helper function to interpret the Lua state handle Lx as either a reference

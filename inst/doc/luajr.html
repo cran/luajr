@@ -336,7 +336,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Introduction to luajr</h1>
+<h1 class="title toc-ignore">Introduction to <code>luajr</code></h1>
 
 
 
@@ -351,9 +351,9 @@ luajr uses LuaJIT.</p>
 quick-start guide to luajr for people who already know how to program in
 Lua. See the <a href="https://www.lua.org">Lua web site</a> for
 resources related to coding in Lua.</p>
-<div id="running-lua-code-lua-and-lua_shell" class="section level2">
-<h2>Running Lua code: <code>lua()</code> and
-<code>lua_shell()</code></h2>
+<div id="running-lua-code-lua-and-lua_shell" class="section level1">
+<h1>Running Lua code: <code>lua()</code> and
+<code>lua_shell()</code></h1>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(luajr)</span></code></pre></div>
 <p>To get a feel for luajr or to run “one-off” Lua code from your R
 project, use <code>lua()</code> and <code>lua_shell()</code>.</p>
@@ -392,8 +392,8 @@ the contents of a string.</p>
 R prompt. This can can be helpful for debugging or for testing Lua
 statements.</p>
 </div>
-<div id="calling-lua-functions-from-r-lua_func" class="section level2">
-<h2>Calling Lua functions from R: <code>lua_func()</code></h2>
+<div id="calling-lua-functions-from-r-lua_func" class="section level1">
+<h1>Calling Lua functions from R: <code>lua_func()</code></h1>
 <p>The key piece of functionality for luajr is probably
 <code>lua_func()</code>. This allows you to call Lua functions from
 R.</p>
@@ -588,9 +588,9 @@ more arguments passed than characters in the <code>argcode</code>
 string. So, for example, just passing <code>&quot;s&quot;</code> as
 <code>argcode</code> means all parameters will be passed as the
 <strong>s</strong>implest Lua type, while if <code>argcode</code> is
-<code>&quot;sr&quot;</code>, then the first argument has argcode <code>&quot;s&quot;</code>,
-the second argument has argcode <code>&quot;r&quot;</code>, the third argument has
-argcode <code>&quot;s&quot;</code>, etc.</p>
+<code>&quot;sr&quot;</code>, then the first argument has arg code
+<code>&quot;s&quot;</code>, the second argument has arg code <code>&quot;r&quot;</code>, the
+third argument has arg code <code>&quot;s&quot;</code>, etc.</p>
 <p>When a vector (logical vector, integer vector, numeric vector, or
 character vector) is passed from R to Lua by <strong>r</strong>eference,
 modifications made to the elements of that passed-in vector persist back
@@ -658,8 +658,8 @@ function:</p>
 to the list (<code>f3</code>) and change whole entries of the list
 (<code>f4</code>).</p>
 </div>
-<div id="benchmarking" class="section level2">
-<h2>Benchmarking</h2>
+<div id="benchmarking" class="section level1">
+<h1>Benchmarking</h1>
 <p>In the same way that using R packages <a href="https://CRAN.R-project.org/package=cpp11">cpp11</a> or <a href="https://CRAN.R-project.org/package=Rcpp">Rcpp</a> allows you to
 bridge your R code with C++ code that runs faster than R, you can use
 <code>luajr</code> to bridge your R code with Lua code that runs faster
@@ -679,8 +679,8 @@ the first example, we compare different ways of passing vectors to Lua
 functions relative to R. In the second example, we compare more
 fundamentally the difference in running a whole algorithm in Lua versus
 R.</p>
-<div id="parameter-passing-example-sum-of-squares" class="section level3">
-<h3>Parameter passing example: sum of squares</h3>
+<div id="parameter-passing-example-sum-of-squares" class="section level2">
+<h2>Parameter passing example: sum of squares</h2>
 <p>For reasonably long vectors, passing by reference (<code>&#39;r&#39;</code>)
 is faster than passing by value (<code>&#39;v&#39;</code>), which is faster than
 passing by simplify (<code>&#39;s&#39;</code>, <code>&#39;a&#39;</code>, or
@@ -704,13 +704,13 @@ the vector by reference, by value, and by simplify.</p>
 <span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
 <span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co"># Comparing the results of each function:</span></span>
 <span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="fu">sum2</span>(v1)    <span class="co"># Pure R version</span></span>
-<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 17.75622</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
 <span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="fu">sum2_r</span>(v1)  <span class="co"># luajr pass-by-reference</span></span>
-<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 17.75622</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
 <span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="fu">sum2_v</span>(v1)  <span class="co"># luajr pass-by-value</span></span>
-<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 17.75622</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
 <span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="fu">sum2_s</span>(v1)  <span class="co"># luajr pass-by-simplify</span></span>
-<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 17.75622</span></span></code></pre></div>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span></code></pre></div>
 <p>The time taken to sum <code>v1</code>, <code>v4</code> and
 <code>v7</code>, depending upon the function kind, on a 2019-era MacBook
 Pro is summarised in this table:</p>
@@ -826,8 +826,8 @@ function is relatively short, and there is a certain amount of overhead
 in invoking it, while the R function doesn’t have the overhead of
 transferring control between languages.</p>
 </div>
-<div id="processing-time-example-logistic-map" class="section level3">
-<h3>Processing time example: logistic map</h3>
+<div id="processing-time-example-logistic-map" class="section level2">
+<h2>Processing time example: logistic map</h2>
 <p>Consider the following:</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>logistic_map_R <span class="ot">=</span> <span class="cf">function</span>(x0, burn, iter, A)</span>
 <span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>{</span>
@@ -852,7 +852,7 @@ transferring control between languages.</p>
 <span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a>logistic_map_L <span class="ot">=</span> <span class="fu">lua_func</span>(</span>
 <span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="st">&quot;function(x0, burn, iter, A)</span></span>
 <span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="st">    local dflen = #A * iter</span></span>
-<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="st">    local result = luajr.dataframe(dflen)</span></span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="st">    local result = luajr.dataframe()</span></span>
 <span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="st">    result.a = luajr.numeric_r(dflen, 0)</span></span>
 <span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="st">    result.x = luajr.numeric_r(dflen, 0)</span></span>
 <span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="st">    </span></span>
@@ -911,9 +911,9 @@ follows:</p>
 version in R.</p>
 </div>
 </div>
-<div id="states" class="section level2">
-<h2>Working with Lua States: <code>lua_open()</code>,
-<code>lua_reset()</code></h2>
+<div id="states" class="section level1">
+<h1>Working with Lua States: <code>lua_open()</code>,
+<code>lua_reset()</code></h1>
 <p>All the functions mentioned above (<code>lua()</code>,
 <code>lua_shell()</code>, and <code>lua_func()</code>) can also take an
 argument <code>L</code> that specifies a particular Lua state that the
@@ -945,25 +945,11 @@ closed automatically when they are garbage collected in R.</p>
 memory previously used by <code>L</code> will be cleaned up at the next
 garbage collection.</p>
 </div>
-<div id="semi-incomprehensible-notes" class="section level2">
-<h2>Semi-incomprehensible notes</h2>
-<p>Note that <code>luajr.list()</code> isn’t quite aligned with the
-vector types (e.g. <code>luajr.character()</code>), because there’s no
-working analogy to ’__newindex’ (i.e. passing a list <code>x</code> into
-a function with args code <code>&#39;r&#39;</code> and then doing
-<code>x[1] = &quot;foo&quot;</code> doesn’t change the underlying list, although
-doing <code>x[1][1] = &quot;foo&quot;</code> does.)</p>
-<p>In general, arguments that can be expressed as lists aren’t ever
-really passed by reference; only their atomic vector elements are by
-reference or by value.</p>
-<p>Note that logical semantics don’t make a huge amount of sense in Lua
-due to true/false/NA, so it is better to explicitly check against the
-built-in values <code>luajr.TRUE_logical_</code>,
-<code>luajr.FALSE_logical_</code>, and
-<code>luajr.NA_logical_</code>.</p>
-<p>For integer, numeric, and character <code>NA</code> values, we can
-compare to <code>luajr.NA_integer_</code>, <code>luajr.NA_real_</code>,
-and <code>luajr.NA_character_</code>.</p>
+<div id="further-reading" class="section level1">
+<h1>Further reading</h1>
+<p>For notes on the <code>luajr</code> Lua module – which contains
+functions and types for interacting with R from Lua code – see
+<code>vignette(&quot;luajr-module&quot;)</code>.</p>
 </div>
 
 
