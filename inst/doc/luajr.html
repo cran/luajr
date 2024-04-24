@@ -704,13 +704,13 @@ the vector by reference, by value, and by simplify.</p>
 <span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
 <span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co"># Comparing the results of each function:</span></span>
 <span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="fu">sum2</span>(v1)    <span class="co"># Pure R version</span></span>
-<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
 <span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="fu">sum2_r</span>(v1)  <span class="co"># luajr pass-by-reference</span></span>
-<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
 <span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="fu">sum2_v</span>(v1)  <span class="co"># luajr pass-by-value</span></span>
-<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
 <span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="fu">sum2_s</span>(v1)  <span class="co"># luajr pass-by-simplify</span></span>
-<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 8.677557</span></span></code></pre></div>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span></code></pre></div>
 <p>The time taken to sum <code>v1</code>, <code>v4</code> and
 <code>v7</code>, depending upon the function kind, on a 2019-era MacBook
 Pro is summarised in this table:</p>
@@ -831,7 +831,7 @@ transferring control between languages.</p>
 <p>Consider the following:</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>logistic_map_R <span class="ot">=</span> <span class="cf">function</span>(x0, burn, iter, A)</span>
 <span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>{</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>    result <span class="ot">=</span> <span class="fu">data.frame</span>(<span class="at">a =</span> <span class="fu">rep</span>(A, <span class="at">each =</span> iter), <span class="at">x =</span> <span class="dv">0</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>    result_x <span class="ot">=</span> <span class="fu">numeric</span>(<span class="fu">length</span>(A) <span class="sc">*</span> iter)</span>
 <span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>    </span>
 <span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>    j <span class="ot">=</span> <span class="dv">1</span></span>
 <span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>    <span class="cf">for</span> (a <span class="cf">in</span> A) {</span>
@@ -840,13 +840,13 @@ transferring control between languages.</p>
 <span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>            x <span class="ot">=</span> a <span class="sc">*</span> x <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> x)</span>
 <span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>        }</span>
 <span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a>        <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>iter) { </span>
-<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>            result<span class="sc">$</span>x[j] <span class="ot">=</span> x</span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>            result_x[j] <span class="ot">=</span> x</span>
 <span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>            x <span class="ot">=</span> a <span class="sc">*</span> x <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> x)</span>
 <span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>            j <span class="ot">=</span> j <span class="sc">+</span> <span class="dv">1</span></span>
 <span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>        }</span>
 <span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>    }</span>
 <span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>    </span>
-<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>    <span class="fu">return</span> (result)</span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>    <span class="fu">return</span> (<span class="fu">list2DF</span>(<span class="fu">list</span>(<span class="at">a =</span> <span class="fu">rep</span>(A, <span class="at">each =</span> iter), <span class="at">x =</span> result_x)))</span>
 <span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a>}</span>
 <span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a></span>
 <span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a>logistic_map_L <span class="ot">=</span> <span class="fu">lua_func</span>(</span>
@@ -898,17 +898,23 @@ follows:</p>
 <tr class="odd">
 <td><code>logistic_map_R(0.5, 50, 100, 200:385/100))</code></td>
 <td>R function</td>
-<td align="right">1,100,000 µs</td>
+<td align="right">1900 µs</td>
 </tr>
 <tr class="even">
 <td><code>logistic_map_L(0.5, 50, 100, 200:385/100))</code></td>
 <td>Lua function</td>
-<td align="right"><strong>430 µs</strong></td>
+<td align="right"><strong>200 µs</strong></td>
 </tr>
 </tbody>
 </table>
-<p>The version written in Lua is around 2,500 times faster than the
-version in R.</p>
+<p>The version written in Lua is around 10 times faster than the version
+in R.</p>
+<p>The speedup was much more notable in an earlier test where the R
+version first created the data frame and then performed the iteration,
+i.e. with the line <code>result$x[j] = x</code> instead of
+<code>result_x[j] = x</code>. The median runtime for that R version was
+two orders of magnitude slower; the extra overhead associated with
+<code>data.frame</code> methods was pointed out by Tim Taylor.</p>
 </div>
 </div>
 <div id="states" class="section level1">

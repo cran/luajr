@@ -88,7 +88,7 @@ sum2_s(v1)  # luajr pass-by-simplify
 ## -----------------------------------------------------------------------------
 logistic_map_R = function(x0, burn, iter, A)
 {
-    result = data.frame(a = rep(A, each = iter), x = 0)
+    result_x = numeric(length(A) * iter)
     
     j = 1
     for (a in A) {
@@ -97,13 +97,13 @@ logistic_map_R = function(x0, burn, iter, A)
             x = a * x * (1 - x)
         }
         for (i in 1:iter) { 
-            result$x[j] = x
+            result_x[j] = x
             x = a * x * (1 - x)
             j = j + 1
         }
     }
     
-    return (result)
+    return (list2DF(list(a = rep(A, each = iter), x = result_x)))
 }
 
 logistic_map_L = lua_func(
