@@ -2,6 +2,8 @@
 #'
 #' When in interactive mode, provides a basic read-eval-print loop with LuaJIT.
 #'
+#' Enter an empty line to return to R.
+#'
 #' As a convenience, lines starting with an equals sign have the `"="` replaced
 #' with `"return "`, so that e.g. entering `=x` will show the value of `x` as
 #' returned to R.
@@ -27,10 +29,10 @@ lua_shell = function(L = NULL)
     {
         # Read a line
         if (prev_line == "") {
-            line = readline("lua > ")
+            line = .Call(`_luajr_readline`, "lua > ")
         } else {
             # If we're building up multi-line input, show a special prompt
-            line = readline(" +    ")
+            line = .Call(`_luajr_readline`, " +    ")
             if (line == "") {
                 # Exit multi-line if nothing entered
                 line = "."
@@ -64,6 +66,11 @@ lua_shell = function(L = NULL)
             } else {
                 # Or just in normal colour if not possible
                 cat(res$message, "\n")
+            }
+
+            # If not a syntax error: quit lua_shell()
+            if (!grepl("^\\[.*\\]:", res$message)) {
+                break
             }
         } else if (!is.null(res)) {
             # If line has returned a value, print it

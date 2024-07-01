@@ -704,13 +704,13 @@ the vector by reference, by value, and by simplify.</p>
 <span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
 <span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co"># Comparing the results of each function:</span></span>
 <span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="fu">sum2</span>(v1)    <span class="co"># Pure R version</span></span>
-<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 6.83011</span></span>
 <span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="fu">sum2_r</span>(v1)  <span class="co"># luajr pass-by-reference</span></span>
-<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 6.83011</span></span>
 <span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="fu">sum2_v</span>(v1)  <span class="co"># luajr pass-by-value</span></span>
-<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 6.83011</span></span>
 <span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="fu">sum2_s</span>(v1)  <span class="co"># luajr pass-by-simplify</span></span>
-<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 8.614029</span></span></code></pre></div>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 6.83011</span></span></code></pre></div>
 <p>The time taken to sum <code>v1</code>, <code>v4</code> and
 <code>v7</code>, depending upon the function kind, on a 2019-era MacBook
 Pro is summarised in this table:</p>
