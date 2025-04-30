@@ -49,7 +49,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -60,7 +60,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -627,10 +627,10 @@ attribute name <code>&quot;/matrix/colnames&quot;</code>.</p>
 table:</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span></span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">integer_</span></span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">real_</span></span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">character_</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="va">NA_logical_</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="va">NA_integer_</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="va">NA_real_</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="va">NA_character_</span></span>
 <span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="va">luajr</span><span class="op">.</span><span class="cn">NULL</span></span></code></pre></div>
 <p>Note that Lua’s semantics in dealing with logical types and NA values
 are very different from R’s semantics. Lua does not “understand” NA
@@ -640,7 +640,7 @@ fundamentally an integer, not a boolean.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>x <span class="ot">=</span> <span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">FALSE</span>, <span class="cn">NA</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="cf">if</span> (x[<span class="dv">1</span>]) <span class="fu">print</span>(<span class="st">&quot;First element of x is TRUE!&quot;</span>)</span></code></pre></div>
 <p>in Lua you have to do this:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span> <span class="op">})</span></span>
+<div class="sourceCode" id="cb10"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="va">NA_logical_</span> <span class="op">})</span></span>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="cf">if</span> <span class="va">x</span><span class="op">[</span><span class="dv">1</span><span class="op">]</span> <span class="op">==</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span> <span class="cf">then</span> <span class="fu">print</span><span class="op">(</span><span class="st">&quot;First element of x is TRUE!&quot;</span><span class="op">)</span> <span class="cf">end</span></span></code></pre></div>
 <p>This is because under the hood, R’s TRUE is defined as the integer 1
 (though any nonzero integer besides NA will also test as TRUE), FALSE is
@@ -648,7 +648,7 @@ defined as 0, and NA (when logical or integer) is defined as a special
 ‘flag’ value of -2147483648 (i.e. -2^31). However, in Lua, anything
 other than <code>nil</code> or <code>false</code> evaluates as
 <code>true</code>, meaning that the following Lua code</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">NA_</span><span class="va">logical_</span> <span class="op">})</span></span>
+<div class="sourceCode" id="cb11"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="va">x</span> <span class="op">=</span> <span class="va">luajr</span><span class="op">.</span>logical<span class="op">({</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">TRUE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="cn">FALSE</span><span class="op">,</span> <span class="va">luajr</span><span class="op">.</span><span class="va">NA_logical_</span> <span class="op">})</span></span>
 <span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="cf">for</span> <span class="va">i</span> <span class="op">=</span> <span class="dv">1</span><span class="op">,</span> <span class="op">#</span><span class="va">x</span> <span class="cf">do</span></span>
 <span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>    <span class="cf">if</span> <span class="va">x</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="cf">then</span> <span class="fu">print</span><span class="op">(</span><span class="st">&quot;Element&quot;</span><span class="op">,</span> <span class="va">i</span><span class="op">,</span> <span class="st">&quot;of x is TRUE!&quot;</span><span class="op">)</span> <span class="cf">end</span></span>
 <span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
