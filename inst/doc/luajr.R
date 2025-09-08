@@ -130,8 +130,33 @@ logistic_map_L = lua_func(
     return result
 end", "sssr")
 
+# To be compiled using Rcpp::cppFunction()
+logistic_map_C =
+'DataFrame logistic_map(double x0, unsigned int burn, unsigned int iter, NumericVector A)
+{
+    unsigned int dflen = A.length() * iter;
+    NumericVector da(dflen, 0);
+    NumericVector dx(dflen, 0);
+    
+    unsigned int j = 0;
+    for (auto a : A)
+    {
+        double x = x0;
+        for (unsigned int i = 0; i < burn; ++i)
+            x = a * x * (1 - x);
+        for (unsigned int i = 0; i < iter; ++i, ++j)
+        {
+            dx[j] = x;
+            da[j] = a;
+            x = a * x * (1 - x);
+        }
+    }
+
+    return DataFrame::create(Named("a") = da, Named("x") = dx);
+}'
+
 ## -----------------------------------------------------------------------------
-logistic_map = logistic_map_L(0.5, 50, 100, 200:385/100)
+logistic_map = logistic_map_L(0.5, 100, 100, 200:385/100)
 plot(logistic_map$a, logistic_map$x, pch = ".")
 
 ## -----------------------------------------------------------------------------

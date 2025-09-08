@@ -340,23 +340,23 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<p>luajr allows you to run <a href="https://www.lua.org">Lua</a> code
-from R.</p>
+<p><code>luajr</code> allows you to run <a href="https://www.lua.org">Lua</a> code from R.</p>
 <p>Lua is a lightweight, simple, and fast scripting language that is
 used in a variety of settings. The standard Lua interpreter is already
 reasonably fast, but there is also a just-in-time compiler for Lua
 called <a href="https://luajit.org">LuaJIT</a> that is even faster.
-luajr uses LuaJIT.</p>
+<code>luajr</code> uses LuaJIT.</p>
 <p>This is <strong>not</strong> a guide to Lua or LuaJIT; it is a
-quick-start guide to luajr for people who already know how to program in
-Lua. See the <a href="https://www.lua.org">Lua web site</a> for
-resources related to coding in Lua.</p>
-<div id="running-lua-code-lua-and-lua_shell" class="section level1">
-<h1>Running Lua code: <code>lua()</code> and
-<code>lua_shell()</code></h1>
+quick-start guide to <code>luajr</code> for people who already know how
+to program in Lua. See the <a href="https://www.lua.org">Lua web
+site</a> for resources related to coding in Lua.</p>
+<div id="running-lua-code-lua-and-lua_shell" class="section level2">
+<h2>Running Lua code: <code>lua()</code> and
+<code>lua_shell()</code></h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(luajr)</span></code></pre></div>
-<p>To get a feel for luajr or to run “one-off” Lua code from your R
-project, use <code>lua()</code> and <code>lua_shell()</code>.</p>
+<p>To get a feel for <code>luajr</code> or to run “one-off” Lua code
+from your R project, use <code>lua()</code> and
+<code>lua_shell()</code>.</p>
 <p>When you pass a character string to <code>lua()</code>, it is run as
 Lua code:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;return &#39;Hello &#39; .. &#39;world!&#39;&quot;</span>)</span>
@@ -366,11 +366,11 @@ Lua code:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;my_animal = &#39;walrus&#39;&quot;</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;return my_animal&quot;</span>)</span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;walrus&quot;</span></span></code></pre></div>
-<p>This is because luajr maintains a “default Lua state” which holds all
-global variables. This default Lua state is opened the first time a
-package function is used. You can create your own, separate Lua states,
-or reset the default Lua state (see <a href="#states">Lua states</a>,
-below).</p>
+<p>This is because <code>luajr</code> maintains a “default Lua state”
+which holds all global variables. This default Lua state is opened the
+first time a package function is used. You can create your own, separate
+Lua states, or reset the default Lua state (see <a href="#states">Lua
+states</a>, below).</p>
 <p>Assignments to local variables will <em>not</em> persist between
 calls to <code>lua()</code>:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;local my_animal = &#39;donkey&#39;&quot;</span>)</span>
@@ -392,9 +392,9 @@ the contents of a string.</p>
 R prompt. This can can be helpful for debugging or for testing Lua
 statements.</p>
 </div>
-<div id="calling-lua-functions-from-r-lua_func" class="section level1">
-<h1>Calling Lua functions from R: <code>lua_func()</code></h1>
-<p>The key piece of functionality for luajr is probably
+<div id="calling-lua-functions-from-r-lua_func" class="section level2">
+<h2>Calling Lua functions from R: <code>lua_func()</code></h2>
+<p>The key piece of functionality for <code>luajr</code> is probably
 <code>lua_func()</code>. This allows you to call Lua functions from
 R.</p>
 <p>The first argument to <code>lua_func()</code>, <code>func</code>, is
@@ -658,29 +658,32 @@ function:</p>
 to the list (<code>f3</code>) and change whole entries of the list
 (<code>f4</code>).</p>
 </div>
-<div id="benchmarking" class="section level1">
-<h1>Benchmarking</h1>
-<p>In the same way that using R packages <a href="https://CRAN.R-project.org/package=cpp11">cpp11</a> or <a href="https://CRAN.R-project.org/package=Rcpp">Rcpp</a> allows you to
-bridge your R code with C++ code that runs faster than R, you can use
-<code>luajr</code> to bridge your R code with Lua code that runs faster
-than R.</p>
+<div id="benchmarking" class="section level2">
+<h2>Benchmarking</h2>
+<p>In the same way that using R packages <a href="https://CRAN.R-project.org/package=cpp11"><code>cpp11</code></a>
+or <a href="https://CRAN.R-project.org/package=Rcpp"><code>Rcpp</code></a>
+allows you to bridge your R code with C++ code that runs faster than R,
+you can use <code>luajr</code> to bridge your R code with Lua code that
+runs faster than R.</p>
 <p>In general, C/C++ code runs about 5-1,000 times faster than the
 equivalent R code.</p>
-<p>In my experience, luajr code often presents a similar speedup, about
-the same as C/C++ code, or in the worst case, maybe half as fast.
-Sometimes luajr code can be faster than C/C++, though usually it isn’t
-quite as good.</p>
-<p>Why use luajr then? Rcpp and cpp11 require a C++ toolchain (e.g. gcc,
-clang, etc.) and requires long compilation times, whereas luajr doesn’t.
-This means that luajr is usable when a C++ compiler isn’t available, or
-when compilation times are prohibitive or an annoyance.</p>
+<p>In my experience, <code>luajr</code> code often presents a similar
+speedup, about the same as C/C++ code, or in the worst case, maybe half
+as fast. Sometimes <code>luajr</code> code can be faster than C/C++,
+though usually it isn’t quite as good.</p>
+<p>Why use <code>luajr</code> then? <code>Rcpp</code> and
+<code>cpp11</code> require a C++ toolchain (e.g.  gcc, clang, etc.) and
+requires long compilation times, whereas <code>luajr</code> doesn’t.
+This means that <code>luajr</code> is usable when a C++ compiler isn’t
+available, or when compilation times are prohibitive or an
+annoyance.</p>
 <p>In the following section, we look at two aspects of benchmarking. In
 the first example, we compare different ways of passing vectors to Lua
 functions relative to R. In the second example, we compare more
 fundamentally the difference in running a whole algorithm in Lua versus
-R.</p>
-<div id="parameter-passing-example-sum-of-squares" class="section level2">
-<h2>Parameter passing example: sum of squares</h2>
+R versus C++ with <code>Rcpp</code>.</p>
+<div id="parameter-passing-example-sum-of-squares" class="section level3">
+<h3>Parameter passing example: sum of squares</h3>
 <p>For reasonably long vectors, passing by reference (<code>&#39;r&#39;</code>)
 is faster than passing by value (<code>&#39;v&#39;</code>), which is faster than
 passing by simplify (<code>&#39;s&#39;</code>, <code>&#39;a&#39;</code>, or
@@ -704,13 +707,13 @@ the vector by reference, by value, and by simplify.</p>
 <span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
 <span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co"># Comparing the results of each function:</span></span>
 <span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="fu">sum2</span>(v1)    <span class="co"># Pure R version</span></span>
-<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 8.609935</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; [1] 4.858528</span></span>
 <span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="fu">sum2_r</span>(v1)  <span class="co"># luajr pass-by-reference</span></span>
-<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 8.609935</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; [1] 4.858528</span></span>
 <span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="fu">sum2_v</span>(v1)  <span class="co"># luajr pass-by-value</span></span>
-<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 8.609935</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; [1] 4.858528</span></span>
 <span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="fu">sum2_s</span>(v1)  <span class="co"># luajr pass-by-simplify</span></span>
-<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 8.609935</span></span></code></pre></div>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; [1] 4.858528</span></span></code></pre></div>
 <p>The time taken to sum <code>v1</code>, <code>v4</code> and
 <code>v7</code>, depending upon the function kind, on a 2019-era MacBook
 Pro is summarised in this table:</p>
@@ -821,13 +824,13 @@ Pro is summarised in this table:</p>
 version is fastest, but the other methods are all comparable.</p>
 <p>When the vector is 10,000,000 elements long, the story is
 similar.</p>
-<p>This is an example where luajr doesn’t add that much speed—the
-function is relatively short, and there is a certain amount of overhead
-in invoking it, while the R function doesn’t have the overhead of
-transferring control between languages.</p>
+<p>This is an example where <code>luajr</code> doesn’t add that much
+speed—the function is relatively short, and there is a certain amount of
+overhead in invoking it, while the R function doesn’t have the overhead
+of transferring control between languages.</p>
 </div>
-<div id="processing-time-example-logistic-map" class="section level2">
-<h2>Processing time example: logistic map</h2>
+<div id="processing-time-example-logistic-map" class="section level3">
+<h3>Processing time example: logistic map</h3>
 <p>Consider the following:</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>logistic_map_R <span class="ot">=</span> <span class="cf">function</span>(x0, burn, iter, A)</span>
 <span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>{</span>
@@ -871,21 +874,52 @@ transferring control between languages.</p>
 <span id="cb13-40"><a href="#cb13-40" tabindex="-1"></a><span class="st">    end</span></span>
 <span id="cb13-41"><a href="#cb13-41" tabindex="-1"></a><span class="st">    </span></span>
 <span id="cb13-42"><a href="#cb13-42" tabindex="-1"></a><span class="st">    return result</span></span>
-<span id="cb13-43"><a href="#cb13-43" tabindex="-1"></a><span class="st">end&quot;</span>, <span class="st">&quot;sssr&quot;</span>)</span></code></pre></div>
-<p>Here we are comparing two different versions (R versus Lua) of
+<span id="cb13-43"><a href="#cb13-43" tabindex="-1"></a><span class="st">end&quot;</span>, <span class="st">&quot;sssr&quot;</span>)</span>
+<span id="cb13-44"><a href="#cb13-44" tabindex="-1"></a></span>
+<span id="cb13-45"><a href="#cb13-45" tabindex="-1"></a><span class="co"># To be compiled using Rcpp::cppFunction()</span></span>
+<span id="cb13-46"><a href="#cb13-46" tabindex="-1"></a>logistic_map_C <span class="ot">=</span></span>
+<span id="cb13-47"><a href="#cb13-47" tabindex="-1"></a><span class="st">&#39;DataFrame logistic_map(double x0, unsigned int burn, unsigned int iter, NumericVector A)</span></span>
+<span id="cb13-48"><a href="#cb13-48" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb13-49"><a href="#cb13-49" tabindex="-1"></a><span class="st">    unsigned int dflen = A.length() * iter;</span></span>
+<span id="cb13-50"><a href="#cb13-50" tabindex="-1"></a><span class="st">    NumericVector da(dflen, 0);</span></span>
+<span id="cb13-51"><a href="#cb13-51" tabindex="-1"></a><span class="st">    NumericVector dx(dflen, 0);</span></span>
+<span id="cb13-52"><a href="#cb13-52" tabindex="-1"></a><span class="st">    </span></span>
+<span id="cb13-53"><a href="#cb13-53" tabindex="-1"></a><span class="st">    unsigned int j = 0;</span></span>
+<span id="cb13-54"><a href="#cb13-54" tabindex="-1"></a><span class="st">    for (auto a : A)</span></span>
+<span id="cb13-55"><a href="#cb13-55" tabindex="-1"></a><span class="st">    {</span></span>
+<span id="cb13-56"><a href="#cb13-56" tabindex="-1"></a><span class="st">        double x = x0;</span></span>
+<span id="cb13-57"><a href="#cb13-57" tabindex="-1"></a><span class="st">        for (unsigned int i = 0; i &lt; burn; ++i)</span></span>
+<span id="cb13-58"><a href="#cb13-58" tabindex="-1"></a><span class="st">            x = a * x * (1 - x);</span></span>
+<span id="cb13-59"><a href="#cb13-59" tabindex="-1"></a><span class="st">        for (unsigned int i = 0; i &lt; iter; ++i, ++j)</span></span>
+<span id="cb13-60"><a href="#cb13-60" tabindex="-1"></a><span class="st">        {</span></span>
+<span id="cb13-61"><a href="#cb13-61" tabindex="-1"></a><span class="st">            dx[j] = x;</span></span>
+<span id="cb13-62"><a href="#cb13-62" tabindex="-1"></a><span class="st">            da[j] = a;</span></span>
+<span id="cb13-63"><a href="#cb13-63" tabindex="-1"></a><span class="st">            x = a * x * (1 - x);</span></span>
+<span id="cb13-64"><a href="#cb13-64" tabindex="-1"></a><span class="st">        }</span></span>
+<span id="cb13-65"><a href="#cb13-65" tabindex="-1"></a><span class="st">    }</span></span>
+<span id="cb13-66"><a href="#cb13-66" tabindex="-1"></a></span>
+<span id="cb13-67"><a href="#cb13-67" tabindex="-1"></a><span class="st">    return DataFrame::create(Named(&quot;a&quot;) = da, Named(&quot;x&quot;) = dx);</span></span>
+<span id="cb13-68"><a href="#cb13-68" tabindex="-1"></a><span class="st">}&#39;</span></span></code></pre></div>
+<p>Here we are comparing three different versions (R, Lua, C++) of
 running a parameter sweep of the logistic map, a chaotic dynamical
-system popularized by Bob May in a <a href="https://sites.ifi.unicamp.br/aguiar/files/2014/10/May-Nature-1976.pdf">1976
+system popularized by Bob May in a <a href="https://abel.math.harvard.edu/archive/118r_spring_05/docs/may.pdf">1976
 Nature article</a>. The output looks like this:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>logistic_map <span class="ot">=</span> <span class="fu">logistic_map_L</span>(<span class="fl">0.5</span>, <span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">200</span><span class="sc">:</span><span class="dv">385</span><span class="sc">/</span><span class="dv">100</span>)</span>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>logistic_map <span class="ot">=</span> <span class="fu">logistic_map_L</span>(<span class="fl">0.5</span>, <span class="dv">100</span>, <span class="dv">100</span>, <span class="dv">200</span><span class="sc">:</span><span class="dv">385</span><span class="sc">/</span><span class="dv">100</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">plot</span>(logistic_map<span class="sc">$</span>a, logistic_map<span class="sc">$</span>x, <span class="at">pch =</span> <span class="st">&quot;.&quot;</span>)</span></code></pre></div>
-<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
-<p>The times taken by each function on a 2019-era MacBook Pro are as
+<p><img role="img" aria-label="Plot of fixed points of the logistic map chaotic dynamical system. The input x-axis value a ranges from 2.0 to 3.85. Between 2.0 and  3.0 there is a single fixed point; above 3.0 the fixed points exhibit bifurcations and chaotic behaviour." src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAEgCAYAAAAUg66AAAAEDmlDQ1BrQ0dDb2xvclNwYWNlR2VuZXJpY1JHQgAAOI2NVV1oHFUUPpu5syskzoPUpqaSDv41lLRsUtGE2uj+ZbNt3CyTbLRBkMns3Z1pJjPj/KRpKT4UQRDBqOCT4P9bwSchaqvtiy2itFCiBIMo+ND6R6HSFwnruTOzu5O4a73L3PnmnO9+595z7t4LkLgsW5beJQIsGq4t5dPis8fmxMQ6dMF90A190C0rjpUqlSYBG+PCv9rt7yDG3tf2t/f/Z+uuUEcBiN2F2Kw4yiLiZQD+FcWyXYAEQfvICddi+AnEO2ycIOISw7UAVxieD/Cyz5mRMohfRSwoqoz+xNuIB+cj9loEB3Pw2448NaitKSLLRck2q5pOI9O9g/t/tkXda8Tbg0+PszB9FN8DuPaXKnKW4YcQn1Xk3HSIry5ps8UQ/2W5aQnxIwBdu7yFcgrxPsRjVXu8HOh0qao30cArp9SZZxDfg3h1wTzKxu5E/LUxX5wKdX5SnAzmDx4A4OIqLbB69yMesE1pKojLjVdoNsfyiPi45hZmAn3uLWdpOtfQOaVmikEs7ovj8hFWpz7EV6mel0L9Xy23FMYlPYZenAx0yDB1/PX6dledmQjikjkXCxqMJS9WtfFCyH9XtSekEF+2dH+P4tzITduTygGfv58a5VCTH5PtXD7EFZiNyUDBhHnsFTBgE0SQIA9pfFtgo6cKGuhooeilaKH41eDs38Ip+f4At1Rq/sjr6NEwQqb/I/DQqsLvaFUjvAx+eWirddAJZnAj1DFJL0mSg/gcIpPkMBkhoyCSJ8lTZIxk0TpKDjXHliJzZPO50dR5ASNSnzeLvIvod0HG/mdkmOC0z8VKnzcQ2M/Yz2vKldduXjp9bleLu0ZWn7vWc+l0JGcaai10yNrUnXLP/8Jf59ewX+c3Wgz+B34Df+vbVrc16zTMVgp9um9bxEfzPU5kPqUtVWxhs6OiWTVW+gIfywB9uXi7CGcGW/zk98k/kmvJ95IfJn/j3uQ+4c5zn3Kfcd+AyF3gLnJfcl9xH3OfR2rUee80a+6vo7EK5mmXUdyfQlrYLTwoZIU9wsPCZEtP6BWGhAlhL3p2N6sTjRdduwbHsG9kq32sgBepc+xurLPW4T9URpYGJ3ym4+8zA05u44QjST8ZIoVtu3qE7fWmdn5LPdqvgcZz8Ww8BWJ8X3w0PhQ/wnCDGd+LvlHs8dRy6bLLDuKMaZ20tZrqisPJ5ONiCq8yKhYM5cCgKOu66Lsc0aYOtZdo5QCwezI4wm9J/v0X23mlZXOfBjj8Jzv3WrY5D+CsA9D7aMs2gGfjve8ArD6mePZSeCfEYt8CONWDw8FXTxrPqx/r9Vt4biXeANh8vV7/+/16ffMD1N8AuKD/A/8leAvFY9bLAAAAOGVYSWZNTQAqAAAACAABh2kABAAAAAEAAAAaAAAAAAACoAIABAAAAAEAAAEgoAMABAAAAAEAAAEgAAAAAKtAJY0AADMKSURBVHgB7Z0J/A3V///fKYkUUVKRXSmJyJZsbUih5VspKdojlaKFoihJG1pQSOmrkL5ZEpFvq4pUpL6IFkTK0ir6Nv/zOt/fuf9z5zP3zv0sc2fmep3H435m5pwzZ3nOnNfnbHPOXo4yQkMCJEACIRAoFkKcjJIESIAENAEKEF8EEiCB0AhQgEJDz4hJgAQoQHwHSIAEQiNAAQoNPSMmARKgAPEdIAESCI0ABSg09IyYBEiAAsR3gARIIDQCFKDQ0DNiEiABChDfARIggdAIUIBCQ8+ISYAEKEB8B0iABEIjQAEKDT0jJgESoADxHSABEgiNAAUoNPSMmARIgALEd4AESCA0AhSg0NAzYhIgAQoQ3wESIIHQCFCAQkPPiEmABChAfAdIgARCI0ABCg09IyYBEqAA8R0gARIIjQAFKDT0jJgESIACxHeABEggNAIUoNDQM2ISIAEKEN8BEiCB0AhQgEJDz4hJgAQoQHwHSIAEQiNAAQoNPSMmARKgAPEdIAESCI0ABSg09IyYBEiAAsR3gARIIDQCFKDQ0DNiEiABChDfARIggdAIUIBCQ8+ISYAEKEB8B0iABEIjQAEKDT0jJgESoADxHSABEgiNAAUoNPSMmARIgALEd4AESCA0AhSg0NAzYhIgAQoQ3wESIIHQCFCAQkPPiEmABChAfAdIgARCI0ABCg09IyYBEqAA8R0gARIIjQAFKDT0jJgESIACxHeABEggNAIUoNDQM2ISIAEKEN8BEiCB0AhQgEJDz4hJgAQoQHwHSIAEQiNAAQoNPSMmARKgAPEdIAESCI0ABSg09IyYBEiAAsR3gARIIDQCFKDQ0DNiEiABChDfARIggdAIUIBCQ8+ISYAEKEB8B0iABEIjQAEKDT0jJgESoADxHSABEgiNAAUoNPSMmARIgALEd4AESCA0AhSg0NAzYhIgAQoQ3wESIIHQCFCAQkPPiEmABChAfAdIgARCI0ABCg09IyYBEqAA8R0gARIIjQAFKDT0jJgESIACxHeABEggNAIUoNDQM2ISIAEKEN8BEiCB0AhQgEJDz4hJgAQoQHwHSIAEQiNAAQoNPSMmARLYhwgKRmDkyJHy5JNPSpkyZQoWAO8igYAJ7LfffjJz5kw54IADAo6p4MHv5ShT8Nv33DtPPPFEGTJkCAVoz30FIp/zNm3ayOLFi+X444+PbFpZAyrgo9lnn33kwAMPlKZNmxYwBN5GAsESqF27drARFEHo7AMqAogMggRIoGAEfAVo5cqVsnbtWs/Qd+/eLbfddpunGy1JgASyQ2CvvfbKTkQBxOIrQOvWrZMGDRrIlClTkqL/4osvpEmTJvLQQw8l2fOCBEggWAIQHPsXbGzBhu4rQG3btpVLLrlELrroIrniiivkt99+k9GjR0vDhg3l77//lg8//DDYFDJ0EiABTcCIjo0DY0hxHkfy7YQuWbKkPP7449K+fXstQFOnTpWdO3fKnXfeKbfffrsUL17c5sFzEiCBIiQQ5+ZVJhh8a0AmEAhNqVKlZNeuXdqqWLFiuhpo3HkkARIoOgJetR136HGu+Zi8+ArQjh075PLLL5d27drp+QTffvut7ve57777dB/Q8uXLTVg8kgAJFIKAEZ1Maz2Z+itEkgK/1VeA3nnnHZk2bZqMGzdOZsyYIYcccoj06tVLli5dqtuejRo1CjyRjIAEcpVAfkUn1zj49gFVr15dli1bJjVr1kzKe506deSDDz6QgQMHJtnzggRIID2BXKi5pM9h5q6+AgShcZvNmzfrTxDwrcmwYcPczrwmARLwIEDhyQslZRPsu+++Swy7m9vefvttqVGjhlSsWFFKly4tXbt2lW3bthlnHkmABFwEirqJlQsdzzYiTwH6+OOPpVatWvLmm28KOqFhtm7dKueee64WHnwFfsstt8iCBQu0SNkB8pwESEASEwULwiLXRCYdA88m2Pjx46VVq1Yyd+7cxFD7yy+/rEVo0aJFcswxx+gwmzdvLp06dZKffvpJypcvny4eupFAThMoyuZVurDSucURcB4BQu0GAgRBwScYxmzYsEFPOkSzy20gRKgdYWiehgT2NAK2KKSrvdj+DCP4z4+9uS9XjnkE6JprrhHUcsqVK6c/uUBGv//+ezn66KPlsccek549eybyjiF6rDkyb948qVy5csKeJySwpxAw4pFOeNKxMPe7/cA+lTi5/cb5Oo8AIePdunXTNZpDDz1UjjvuOBk1apRg5vOFF14oe++9t/z555/y2muvyR133CH169eXKlWqxJkB004C+SZghCNT4TH+8xNRQe7JT/hR8JtHgJAofPfVu3dvGTp0qPz111961Gv27Nl6AS64T58+XS6++GKpWrWqzJo1C1Y0JJDTBAojBoW5N6ehqsx5joKhljNixAj55ZdfBMtxoAl28sknJ1iceuqp8t5778lXX30lmKhIQwK5RgCiYf9M/lDjsX/Gj3F3H434ZFpTct+f7jqIMNPFF4SbZw3IRISJhqjlGIOmFxYoO/jgg6VZs2bGmkcSyAkCRizszPgVcri7RcjcY4dnn9vh7+nnnjUgN5QtW7ZIhw4d9BygE044QY488kipUKGCPPLII26vvCaBWBEw4mEEAuJh/zLJjNu/CRP3GrdMwtkT/aStAQEIlt/ADhCoDfXt21fQ/AJgNMEGDRqk5wbde++9eyI75jmmBIzYmORDJIrK2GHZQpSf8BGGO43u++143G5xuvYVIHx+gW+/0N9z+OGHJ/J2yimn6P2G0FE9ePBgPUqWcIzxCZYbwce3fgbzojZu3Ojnje4RIuAu1EEX4nRCks7NnU4gdPs3foLOQ9CPz1eAVq1apWs9tviYRGFY/qabbpL169frZpmxj/NxzZo1MmHCBN8sQHywLjZNtAmYgmpSme0Ca+Jzp8N9bdKX6uj2b8JN5T8u9r4C1LJlS7nrrrv0zhjuES/MmEYnNfqEcsVgDWz8/Ax2m8Q8KZpoErALbBQKK9Jgp8lQS2Vv3N1H49+EFYW8udOYn2tfAcKM6BYtWsixxx4rECOsjIgv4bEW0HPPPSfnnHOODB8+PBEnVk/EomU0JBAGAVMwEXfUCqcRD5uLnV7b3ssv3FP5t++N07mvAH322WeycOFC2XffffU2r9jq1Rh0TM+ZM0f/jN2ZZ55JATIweMwaAbtgRk14bAiphMX2g3OTn0z9u++Py7WvAJ1xxhmJJTnikimmc88iYAorch1l8TFPJT+i4s4brvNzv4kzqseM5gGlSzwXJEtHh25BEzAFFIUyDuJjeKRLq5cb7ExezdGEFeejbw0ImXvjjTf03mA//vij/Pe//9X5xfH3338XjJJhhjQNCWSbgKkNZDveoorPFhU7TC+BsfPq5W7fH6dz3xoQlmY9++yz9cRD7A2GPiEsybp9+3ZZsWKF3H///XHKL9OaAwRQAO0CGecsQYS8ajxeeTLCY+7J9D6vsKJi51sDwpo/2IIZExFR68EI16RJk2T//feXa6+9Vg/PRyUzTEfuE7ALYS7nFuJi8urOZ66IL/LlWwPCl/BNmjTRQ+9lypSRww47TA/BA8Ldd9+t9wvbvXu3mxGvSaDICaQqkEUeUQQC3FPy6itA1apV00tymGeClRHfffddfXnQQQfpI2ZC05BAtgjkQtOjoKyMMOFozgsaVhTu8xUgLLuB/p7LLrtMb8GDazTB0BeECYhoklW1luyIQqaYhtwlsCeLj/up5gILXwFCh/Mzzzyjd8jYtGmT7vdBn9Dxxx+vP0K9+uqrc0KJ3Q+X19EigP/2uVDgCkvVZpALNSDfTmgAO//88/X2O1gpET/sGzZ//nxp2LAhV0Qs7BvF+30J5Lr45EdIDIv83OMLOEQPGQkQ0oc5P/gMA2tEw5QsWVKvjogVEjt27Kjt+IcESKDwBFDLcQuMqfkYe3Nd+NjCDSEjAcKeXzNnzpRUo11RgfHDDz9IqVKl9IhduFgZe1ERMAWuqMKLWjjIn5fguNNp/MHeZhKVsudOb6bXvn1AH330kRYfrJGDuUBYiMv9yzSyovL34Ycf6loXFs2HgTiiIxzLY5QtW1Y3DbGQGk18CaCQmYIW90Lm9xRMPv385aK7bw0I/T3Yihnb8ETBYBkQjMThI1kYNAu7dOmiO8V79eolJUqUkGnTpsnpp5+uN0y0d/OIQvqZBm8Ce2IhTJVn2GdSK/ImGS9bXwFq3bq13HDDDYJPMqKw++k///lPXft59dVXNemxY8fqT0MgTPvs87/sYE8zrF09ceLEpO2E4vVocjO1qQqdya1d2zF+TYE0fnLlmE5kTN7tvHrZ2e5xPPcVoKOOOkqeeuopady4sZx11ll6gXo3iCuuuCJreV+yZInY+9NjjlKnTp0S4mMSAj+PP/64ueQxBALu98ROgi00tr19bvykC8f2H6dzd57SiRHy5ecep7zbafUVIPSzjBkzRjAHaNy4cfpnB4DzbApQvXr1ZOrUqdKjRw+9UwdqaA8++KCMHDlSTxFAevCwsHV0nTp1cEmTBQLuAmVHaYTEtsvPuSl8hQ0nP3EG7dfOE9jZ/Ew+bTv7POi0ZTN8XwFasGCBoNMXhf60007TH6FmM4HuuPr37687mfF92u233y7NmzcXfB7SqlUrwXKwWKt58uTJ8vrrryc+GXGHwevCEUhXGEzhKVwMuX13On7IOdxTcTTClSuEfAUIawDVrVtXzjvvvEjkuUqVKvLWW2/JkCFD5JJLLkmsT4TEmW/UGjRoIOgjwkRJmsIRSFdYUhWSwsXofbcpeNmM0zslRWubim8q+6KNPfzQfAUI+39h6521a9dGZtYzRuVeeOEFGTVqlP5QFtMCduzYofctQ0c5+q1oCkYg1YufawW/YHQKf5fh6+Zp7BGDEVu/2Nxh+PmPoruvAGFiHyYiYnfUzp07C2ogWIzeNv369bMvs3Zevnx5wa9Ro0Z54kTfFUbFMGM7PwbLj3z++ee+t2BtpD/++MPXX5Q92C+9O51RfbmR5qimzc0w3bWdD6/nYETIfbT92mGkiyvKbr4C9Mknn8iMGTN0HjC/xsuEJUBeaTF22KsMfVYvvfSSscroiK/8R4wY4esXW1ZjBC5Oxn553emOQ6E2hTEXCh74m+dh2Jtr2822cz+zXLj2FaD87IqBAolOYHywGrbBXKBatWrlOxnIr5nkmO5m5BOLs0XZpHp5zQsf5bSnSpsRoVTuUbZP9Tzc9vZ1nJ9VJs/CV4AyCcT4Oemkk2TKlCly3HHHGavQjvfcc09ocYcZsf3ymnTk2ktsRCiO+TJpN88GRzsfeH62H/M8YWfb2/fYYcXtvEgFKIzM40FgpA61LuziuicZ83K685wrL6c7X/Z13AqjeVbmaJ4Rro2dnT+cZ+LHfU/crn0/Ro1ihjDqhflAVdUHqNixtUKFCrozGmtWY6G0vn37yq+//hrFpBc6TeaFdb+0eFnNr9CRxCQAu4BGOclezyqT9Jpn7fZr8u22j+N17GpA33zzjd6rHg8HC6VVr15d13xwvXXrVj0sj87y6dOnCyZR1qhRI47PJSnNBX2BkwLJ0QsURrug5lLhtB+ZyZedV7gbe9tvnM5jJ0D47AI1H2yWiC/fvcx9990n7du312tXDx482MtLpO3cgoPExv1FCxI42HgxCzLOTMN2p8t+jsbNpN+4wd62w7Xxm2m8cfEXuyYYpgVceumlKcUH4LGB4mVqEf25c+fG5Tkk/ovbLxpeQvOLTUZCSqjhFKXCap4l0maMSZ/thnP4MW7wa9zN0dyfa8fYCRC+/TKfXKR7GAsXLpQjjjginZfQ3cwLZ79kpiDZL23oCY1RAgw3wzbMpJtnmSoNcDfP3hzh1+TBPjdhGTdznSrsuNjHrgmGZTYgQps3b9aLpKGPB7OhixUrpvuAvv76a/0x6pw5c3QzLWoPwn7RTNrMS2WueSwcAfA0nHEMi2+6uO00euXWuLvzYV/jvrDy5pXmgtjFToDq16+v9yTDdkDdu3fX20a7M47FyObNm6e/kHe7hXFtXhoTd9xfGpOPKB8NY7A3/I1dNtJt4kwXF9KTib9UYZj8IAxznspvVO0zEiBkDisRNm3aNPFB6nXXXadXSsRSGMZgw0KMSgVtatasqUe48DnEt99+K6j1YMH8ww8/XCpVqqRrREGnwS98rxcrri+JX16j7G6Y43mYZ2Lsgki3HYcdpzsuuLnTYa5Tudlhu8OL63VGAoRPExYtWqR/EBiA+vTTT/UyHfhu6sYbb9T5z/byF5gDBDHCLyrGvCRIj3mhopK2PTkdeBbm2ZhjUT8fv3DtNOBZwL+dBnO/13Mybm7/9rXXfVG38+2EXr16tfz73/+WFStW6L4XZAgw0BH88MMPy5133imoidD8jwBeCPMjk2gRcD8XvMemYBc2pSYcWxDc5/Bj29lxmvuNnfsa9uZeuHm5m3vjdPQVIEzmw3IXtWvXzpMvLAiGDQvRDKIhgbgQQEE2P6S5sAXaiIERCJuDHY+Jy7gb/+Z+Y+919PILu0zu9QovKna+AoQ+HizJil0x3GbWrFn6G6yoD3e7081rEjAETMHGdWGEyA7HhG2OXiJhxANuXve67bzSZu51+zXxxuHoK0DoeK5YsaJ069ZNMLdm/fr1smbNGt0pPWDAAP05RH4X/YoDGKZxzyGAAmx+yLUp7Dj6GSMC+fWXLmxbUOx0IQ7bzcSZLizjJ6pH305orH743nvvyZlnnilYntU2WCf6iSeesK14TgKxJmAKuCnU5mjs3ZlLZW/7gx+EY8Ky3VKdw6+5D37sc3Od6t442fsKEDKDdZaxUiBqP/gUAktfoGlWrVq1OOWVaSWBjAnYwuIWD+NmRCLjQP/Po7kfl+6wTVi2H2Nn/NtH+Evl174vqueeAoQ+HzS3rrzySr3sKLbkcRsMwxtz2223mVMeSSDnCNgFPJVg5CfTCMPPuMXNvs7kfr/wo+KeUoAeeOABvec6JvnhPJ2hAKWjQ7dcImDEyBaETPKH+9zC4WWHsOyw7fjc92cSb9T9eApQr169BD8YbHGzbdu2qOeD6SOBrBIw4mEEoiCRG0ExYbnDMO7G3sTltjfucTz6joJh6xlsVeNl4IZJijQksCcSMIJQmLwb8fELy/iz4/K7x/Yb1XNfAUJf0FlnneWZ/iVLlgj2ZsdKhDQksCcSyE9tJJVg2OJi+7HPTTw4GntjF2funk2wnTt36kW/sK7yli1b9LyfDh06JOUTEL788ks58MAD5aCDDkpyi/PFDz/8oPPrlwdsTAhONHs2AZQDWxTS0UglGLa9HZZtb8I18ZnruB89BQhzf9q1a6f3V8fuogCBDz9tA7sWLVroJTG8QNl+43SOWt3QoUN9k/znn3+y5udLac/xgDJgaiaZ5NpPSEyZSucvP/FlkqYw/HgKEBLSo0cP/cOQ/PPPPy8jR44MI31ZjxM1PXdtzysR2JgQy3/QkIAhkE6EjKDYfs25fTSiYo7u+2y/uXCeUoBM5ho3biz42UqMZsr777+v7aO+O6jJB48kEBQBWyy8RCidiKRzs9Nrlz9j7xWXcYvL0bcTGhnB5xbHHHOMztNXX32lh+Y7d+6sZ0jHaeH3uDwUpjOeBGwhQg4gEEZgjJvJmfva2Bv/5n5jbx9T3Wv7icu5rwCtWrVK+vTpo5c3RcaxLQ76hfB92PXXX69nS8cls0wnCQRNAGUEP1tIEGe6ay9B8fJv/Lndgs5TkOH7CtAHH3ygN/d76qmnNMSZM2fKOeecI82aNRPMgMb3YZs2bQoyjQybBGJHwIgFEm6f5ycjuM/88nNfnPz6CtBPP/0khxxyiM4TPkjduHGjYIlWGIwEoTZUqlQpfc0/JEACeQn41Vi83CE8bnv3dUGFLW8Kw7PxFSDstY6hacx4fuihhwRr/5x22mny888/6+HqJk2a6LlA4WWBMZNANAn41V5sAbH9uoUmVe4y9Zfq/ijY+46CtWnTRjp27KhnPCPBo0aNEgxBY5gezbGxY8dGIR9MAwlElgDExS0Wtvgg4W53c22OJgxzjXvcYcAubsZXgJChl156SVauXCllypTR297ADh3Qjz76KGs/gEFDAj4EjIAYb7aQGDuvo7nP7T8XxAf59RSgTNYDws3z58/HQXdG6xP+IQESSEnAiElKD5aD8esWHuMF9rkgQikFiOsBmUfNIwkUHQEjLOlCNH7MMZ3fuLt5ChDXA4r7Y2X6o0zAT1hMrccckReve3KhFuQ7ChblB8m0kUBcCUBQMjHw5yU+mdwbBz+eNSA74W+99ZZgH3gvAwXGsDzmCWHXjFT+vO6lHQns6QSMCNk1HTAxgmOOhpP72tjH+ehbA8KmgxUqVJDPP/9cb8Hctm1bwQ8wYFerVi29S0bv3r3lpptuyioLpCGVwWqN+NGQQNQJpHqPTRPLuLuFKur5yiR9vgKELXjwOQZ2xsB3YViWA7/ly5dLy5YtpWzZsnrdoDlz5mj7HTt2ZBJvofxMmjRJbwmEdYvwSQj2qXebrl276rWK3Pa8JoGoEzDC404nhMiIkdstrte+AvTGG29I1apVBZsQ2qZYsWK6xjNt2jRtjc8z0BTDEH6QBkP/3bt3lypVqsitt96qV2yEEI4ePTrIaBk2CQRKwC0spraDo30eaCJCCNxXgCAq3377refOGMuWLdN9QEi3WaI06OVZx4wZo79FW7RokQwZMkRWr14td955p6AJ+Oyzz4aAkFGSQNEQcIuQV6hGjHKlNuTbCY3tmP/++2+9Nzw2KsQ1Mo+aET7LuOSSS2T37t0yaNAgKV68uJxwwgle3IrM7ptvvklqWuGB3HPPPVoAkT70WZ166qlFFh8DIoFsEkDZMiKTLl74yUSw0oURBTffGlDp0qXl7bff1n0+WIQMn2NgIXosyQExGj58uN6uediwYTJgwABB0yxIg2VQsVOH22Ad5wsvvFA3FfHVPg0JxJVAKmEx9jia87jm0aTbtwYEj6jVYAcMNLmwNzw6f7FMa926dXU42Ccey3agQzpog85l1LpQ28Gwf4MGDRJRjh8/XgtQq1atpHz58oHXxhIR84QEipgABCZVTcjY54IIZSRAYIv5PpUrV9ZrAGEd6Nq1ayeQ4+v4bJkLLrhAj8ahxoN4bQHC2kQvvviiXHPNNTJx4kQKULYeCuPJCgEjPCayXGiGZdReWrt2rZ77c+SRR+pjnTp1dOG/+eabQ6kKDhw4ULZv3y79+vUzzyJxLFGihEyYMEEWL16sa0oJB56QQMwI5EINxw+5bw1o165dgr4fbFLYv39/PeMZNQ3MkL7//vv1fmHo/8m2QTOwYsWKKaPFIvr16tVL6Z7KYdu2bXrUL5W7sceoH9jQkECQBIwImdpPuqZZkOkIKmxfAcJoFyYd4mf6fJAYTAAEFKySGIYA+QFBbQ0rN2Ito/wYCOvdd9/tewvEJxuTLn0TQg97BAEjPEaIciXTvgKE2c+NGjVKEh+T+csuu0zXitatW6dnJhv7KBwxLwifieTXdOrUSfDzMxBgrBZJQwLZImBEKFvxZSMeXwHCvBqMfH333Xe6E9pO1KxZs/R3YOmaQrb/bJ5jbhANCeQaAVuEcB5349sJjU8sMKTds2dPLUTYCQML0s+ePVsGDx4sXbp0ScyGDgMGHsKWLVu4T3sY8BlnqARyoTnmK0CYdDhjxgzBjqgY8sZwPCYjYqF6DMVj19Rsmw0bNuimX1X1jdq+++6rv9aHSCJd2MWjb9++utM82+lifCSQDQK5UPMxnHybYPCI/g50QuNDU0xIxAgURpkwGTHbBp9itGjRQneAn3/++VK9enUpV66cvt66daugPwofyE6fPl0WLFigN1XMdhoZHwkETcBuiqEmFFdRykiAABObD7Zu3Vr/goabLnxsDY2aD0bnMOfHy9x3333Svn17wbIdaCbSkEAuErBFKK758xQgfHKB778yNTfccEOmXgvtDx3iWI4jlfggAnwUixE6fCxLASo0cgYQYQJxFyFPAcJSF9j3PVOTTQFq3ry5XoAM34KlM/hgFSN4NCRAAtEl4ClAWFo128urZooIH6NChDZv3iwXX3yx7uNBBzS+wkcf0Ndffy2TJ08WrNCIZhoNCeQ6gbj2/+C5eApQlB9Y/fr1BcttXH311bophrWK3AbrAc2bN0/wVTwNCZBAdAnEToCAsmbNmnqEC59DYLVG1HqwKBrWCqpUqZKetxQ0csyHevPNN2Xp0qVJUb333nt6XlLQK0MmRVqACyzYjyVUwCvqBlNAqlWrFvhaU4XlsGnTJj1VpSAz8Asbt9f9aBFE3cRSgAxUzAGCGOGXbYP5T1jyAx/m2gZTFfDhLpayjbL57bffdDP2l19+iXIyddqw+8rOnTsjL0D4Z4iPlPGLgunTp4/nJ1RRSJtJw16q/Rj/+dwmNxE4Yn3q/fffX+64444IpCZ1EjDKibTi49uoG/DEbHdMBYmywcYNF110kZx77rlRTmak0uY7EzpSqWViSIAEcooABSinHiczQwLxIkABitfzYmpJIKcIUIBy6nEyMyQQLwIUoHg9L6aWBHKKAAUopx4nM0MC8SJAAYrX82JqSSCnCFCAcupxMjMkEC8CnIhYxM8LH8ligagKFSoUcchFG5yZCY0F3aJuVqxYIccee6zmGuW0YrE8fIKDVURpMiNAAcqME32RAAkEQIBNsACgMkgSIIHMCFCAMuNEXyRAAgEQoAAFAJVBkgAJZEaAApQZJ/oiARIIgAAFKACoDJIESCAzAhSgzDjRFwmQQAAEKEABQGWQJEACmRGgAGXGib5IgAQCIEABCgAqgyQBEsiMAAUoM070RQIkEAABClABoXrtR+YXVBjr/xcknX75CMK9oGwKel9B85Dt+AqazrjcRwHKx5NauXKldOjQQX9siB0aGjVqJPPnz/cN4dlnn5XWrVvrXR0aN26s9xPzvakQHvChad++ffU+adg2qEqVKjJ06FD566+/0oaK7a6PPvroPD+EF5SZO3eunH/++XLAAQfoD04feeQR36iw7VH//v0F+2+VK1dOzjnnHL3Hme+NhfCwdu1aufnmm+XII4+UihUrSrdu3WTHjh1pQwS3OnXq5OHpt6142kBzzDF5U6scy1xRZgebvJ122mm6UI8dO1YOPvhgGTlypBakxYsXS8OGDT2jw7Y3V111laBgPfbYY4J7IWK45/jjj/e8p7CW1157rcyaNUv69esnbdu2lZkzZ8qgQYP03lr33ntvyuBff/11LQJNmjRJ8lO8ePGk66K6wD5anTt3lh49emhRfuedd7SwYF+tW265JWU02PLotddekzFjxgj2huvdu7eccsopsmzZssC+mL/88ssFm1GOGzdOc0QaTj/9dPnggw9SpnP58uXy5Zdf6n8GpUuXTvgLYx+7RORRO1FVSpoMCDzzzDPYP81RGw8mfP/888+OerGcXr16JezcJ+o/oKP2sE+yrlu3rqMKXZJdUV1s377dKVasmHPrrbcmBan2qnLUEiFJdvaFElidv9mzZ9vWgZ5fccUVTo0aNRwlOIl4VG3GUcKcuHaffPrppzp/r7zySsLpiy++0GlXopSwK8oTJcw6/I8++igR7JQpU7TdqlWrEnbuEyWQ+v1QzWC3E6//jwCbYBn+R2jQoIFgN9QTTzwxcQeaDagJqUKfsLNP1q9fL6pwSJcuXWxr6dSpk8yZMyfJrqguUHt48sknBbUg22BrY+yCmqpP6LPPPtPekU8Y9X7oY5B/Ro0apTdGVIKZiAbrKaWrcS1YsEDXetq3b5+4B83G2rVrB8YUNV80wdDkNgbbMMOkSyuYopaL9aGywdOkLU7H///k45TqENKKguku1NgHHvvSN23a1DNFa9as0fZHHHFEkjv2sMdOn6nEIMlzPi/QJ4ImHwTHGMSj/mML+p/swm7ccURhwQ6kaCKiMJctW1bv8on944My++23n27SIvx169bpfiowvf7661NGuXr1ar3tNZpetgFTiFcQBgJieKpar0ydOlUefPBB6dixo1StWjVllGAKgUITEwuVoS9uxIgRFCOLGPuALBj5OUUHIwoKOkJVU8LzVrysMOXLl09yx8uImgoKdzb2kB84cKBs2LBBF5ykhFgXKCzIE/Zhx5bN8+bNk2nTpsl//vMfUU0P2XvvvS3fRXsKETcrM5599tm6gzdVDKjFQWTdBkyDEiA7LvQ1LVmyRKcBNc10Bkx3794tLVq0kOHDh4tqxotqGuu+JDCmUQTYGM0/AVUInDZt2jiqCeYsXbo0ZQDoTwFiVRNK8mP6D1QTLck+iAv14us0qFGwtMEvXLjQmTRpUpIf1UTS96r/+En2RX2BvjT07ahOfady5cqO6gR31IidZzTdu3d3VG00jxv6jpo1a5bHvqgtPvnkEwfPVXXuO0oIHSVGnlEo4XEmTJjgqBpdknvLli2dkiVLOn/88UeS/Z56QQHK55NHJy8KiGqi5Hm53EFBnCBAducl/Kj/nNpeDeO6bynS6wEDBuh4Bg8eXKBwN27cqDt81X/rAt1fkJuee+45neZ3333X8/bbbrvNUc2ePG4QhDPOOCOPfVAWeA9UE9K58cYb8xWFEXUIGY3jsA8oH/VgNKkw9Iomw5tvvinqP27auzFfBMbdNMA1mhFBLl6OZhfm/jz66KNy1113pU0nHNHUwrC4bTDXCU2vVP1Gtt+CnKMpg3ht065dO32JaQpeBkx//PHHPP1nYJquP8YrrEztwAVTBGxTpkwZ3feXKp2///67qFqdbtba92HgAiYopnZcsTinCmdGAEOpJ598sqM6O510Q692aLhHjdA4qq/ItnZUZ7CjRsaS7IryQs03clTHqTN+/PiMgz3qqKMcNZcpyb+pjcyYMSPJvqgu1E4XujZph/f888/rGlCqONFUUwXLWbRoUeI29Q9B273wwgsJu6I8UXOoHCXEjhoJSwSLGhCaUl27dk3Y2ScmncOGDbOtHdXHpZvubIL9DwubYEmvR+oLFGa8+GrSmzN58uSkn6oNJW5Uk/8cNekwcT169GhHjS45amKgo/4rajdU3TMVsURAGZ6g2YS5SWq6QFIaTZrRNwHz0ksvOT179kz0RTzwwAM6f+gzUjUM58UXX3RUB7tTr169pHk6GSYjI2+qdqbjfPjhhx3MQ4LoQAghTDt37tRhuNMJy1atWmmxVCNnzg8//OCoIXnd/wPBD8LgWanaoKMmTernpjqXnX/84x+OmmWemBcGcQLPt99+WycBacEzwD8sNdtbp1NNAnVKlCjhFLRJHETewg6TApThE1AjGbqwQITcP7vvQU3VT+qLQIHv06ePfllRK8HExIkTJ2YYa/69ofbjTp99bfqd1Exj7Q8dwDCYDIj+FTW8re3xH1/N2NZilP9UZHYHCqlqKupCCTZIp5pz46xTwmKMO52wV/tvOWrqg/avhrn1PWr0ztwSyBGTEdUwuo4T6URn+auvvpqIS82I1m5PP/10wk413XTaDH/8Y4AIBSWUiYhjdMJ9wdTbkQ2j/qOL+m+tvyXKRnwFjWPXrl26j6tSpUr627WChpOf+/CJgxIdOeywwwR9K5kazKVCH5XXsHymYeTHnyrXup8M/TdKgDK+FRNV0W+FqQbs+0nGRgFK5sErEiCBLBLgKFgWYTMqEiCBZAIUoGQevCIBEsgiAQpQFmEzKhIggWQCFKBkHrwiARLIIgEKUBZhMyoSIIFkAhSgZB68IgESyCIBClAWYTMqEiCBZAIUoGQevCIBEsgiAQpQFmEzKhIggWQCFKBkHrwiARLIIgEKUBZhMyoSIIFkAhSgZB68IgESyCIBClAWYTMqEiCBZAIUoGQevCIBEsgiAQpQFmEzKhIggWQCFKBkHrwiARLIIgEKUBZhMyoSIIFkAhSgZB68IgESyCIBClAWYTMqEiCBZAIUoGQevCIBEsgiAQpQFmEzKhIggWQCFKBkHrwiARLIIgEKUBZhMyoSIIFkAhSgZB68IgESyCIBClAWYTOqeBL466+/ZNiwYdK7d2/5448/4pmJiKaaAhTRB+OXrH/961+i9lOXTZs2+XnNl/tBBx0kDzzwQMb3LF68WN55552E//zen7gxoicPPvigVKxYUYYMGSLPPPOMHHrooTJq1KiIpjZ+ydonfklmioMkcPHFF8txxx2XURSoGTRv3lzGjx8vLVq00Pfk5/6MIgnR00cffST9+/eXe++9V6pUqSJff/21/P3333LHHXfIhRdeKIccckiIqcuNqClAufEciywXo0ePzjgsx3EEP9vk5377viiev/XWW7LffvtJ3759ZcaMGVKsWDG56aab5LvvvpN169ZRgIrgobEJVgQQoxIEmkKtWrWSMmXKSK1atfR/7127diWSh//e+G9ev359Oeyww+SGG26QcePGyQUXXJDw06ZNG3n22WcT10888YQcddRRsv/+++v7HnvsMe32+++/S9OmTfX54MGDpXv37vrcff+vv/4qffr0kTp16ug0ofawYcOGRPh+J0jvgAEDZMKECVKvXj05/PDDdV8MhO/xxx+Xo48+WurWrSuPPPJIUlAQiHPPPVeqVq0qBxxwgDRs2FBeeOGFhB80HRs1aiRLlizRtbiDDz5Y12qWLVuW8AM79Pl8//33CTtwALPGjRsn7F555RVdAyxXrpzm2qFDB/nyyy8T7jxJQ0A9SJoYElAvPaoejiocOvUff/yxs/feezsdO3Z0Xn75ZUcVSOfAAw90zjzzzETu7rnnHqdkyZKO6tdwpk6d6qjmk6MKlKMKcMJP2bJlHdXhqq9nzpyp47j99tsdxKf+++trJQbO7t27naefflpf9+zZ04FfGPv+//73v85ZZ53lVKpUyVHNNO2/Zs2aTqdOnbTfTP4gbNUH49SuXdtRfS/OVVddpeM85ZRTHCWMOp9XXnmltlPioYPcsWOHo/qidP5Uv40zZswYR4ml9rNixQrtZ+7cufq6QoUKzkMPPeQsWLDAOeOMM5zKlSs7P/30k/azfv16HY4SOee6665zhg4dmifJ06ZN0+FcffXVDs7vuusuR/UTOcccc0wev7TISwBVaJoYEnALkKr5OCeccIKjajmJ3Bg/KFwQKgjU3XffnXD/7bffHBTAY489NmFnC8gtt9ziqJpUwg0nt956qzNp0iRtp2pXuvBBkIyx71fNFu2+dOlS46wLOkRP1RASdulOIEAQ2pUrVya8VatWTdutWbMmYQfhULUlfT1nzhxH1Xwc1WeTcF+1apW+Z+zYsdrOCJCqvSX8qNqO5tGvX7+E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" alt="Plot of fixed points of the logistic map chaotic dynamical system. The input x-axis value a ranges from 2.0 to 3.85. Between 2.0 and  3.0 there is a single fixed point; above 3.0 the fixed points exhibit bifurcations and chaotic behaviour." /></p>
+<p>In the code above, we don’t actually compile the C++ code using
+<code>Rcpp</code>, we only declare the source code as an illustration. I
+don’t actually compile the code in this article because I didn’t want to
+have <code>luajr</code> depend on <code>Rcpp</code> only for the sake of
+this vignette, but you would do so using
+<code>Rcpp::cppFunction(logistic_map_C)</code>.</p>
+<p>The times taken by each function on a 2025-era MacBook Pro are as
 follows:</p>
 <table>
 <colgroup>
-<col width="56%" />
-<col width="23%" />
-<col width="20%" />
+<col width="60%" />
+<col width="18%" />
+<col width="21%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -896,30 +930,41 @@ follows:</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>logistic_map_R(0.5, 50, 100, 200:385/100))</code></td>
+<td><code>logistic_map_R(0.5, 100, 100, 200:385/100))</code></td>
 <td>R function</td>
-<td align="right">1900 µs</td>
+<td align="right">850 µs</td>
 </tr>
 <tr class="even">
-<td><code>logistic_map_L(0.5, 50, 100, 200:385/100))</code></td>
+<td><code>logistic_map_L(0.5, 100, 100, 200:385/100))</code></td>
 <td>Lua function</td>
-<td align="right"><strong>200 µs</strong></td>
+<td align="right"><strong>80 µs</strong></td>
+</tr>
+<tr class="odd">
+<td><code>logistic_map_C(0.5, 100, 100, 200:385/100))</code></td>
+<td>C++ function</td>
+<td align="right">100 µs</td>
 </tr>
 </tbody>
 </table>
 <p>The version written in Lua is around 10 times faster than the version
-in R.</p>
-<p>The speedup was much more notable in an earlier test where the R
-version first created the data frame and then performed the iteration,
-i.e. with the line <code>result$x[j] = x</code> instead of
-<code>result_x[j] = x</code>. The median runtime for that R version was
-two orders of magnitude slower; the extra overhead associated with
+in R, and even somewhat outperforms <code>Rcpp</code>. Note that the
+relative speed of Lua versus C++ depends on the number of iterations,
+and whether you use <code>Rcpp</code> or <code>cpp11</code>, which each
+seem to have marginal advantages in different cases. Nonetheless, the
+Lua version seems to execute about as quickly as the C++ version, within
+plus or minus 20%.</p>
+<p>The speedup of the Lua function relative to R was much more notable
+in an earlier test where the R version first created the data frame and
+then performed the iteration, i.e. with the line
+<code>result$x[j] = x</code> instead of <code>result_x[j] = x</code>.
+The median runtime for that R version was two orders of magnitude slower
+than the Lua version; the extra overhead associated with
 <code>data.frame</code> methods was pointed out by Tim Taylor.</p>
 </div>
 </div>
-<div id="states" class="section level1">
-<h1>Working with Lua States: <code>lua_open()</code>,
-<code>lua_reset()</code></h1>
+<div id="states" class="section level2">
+<h2>Working with Lua States: <code>lua_open()</code>,
+<code>lua_reset()</code></h2>
 <p>All the functions mentioned above (<code>lua()</code>,
 <code>lua_shell()</code>, and <code>lua_func()</code>) can also take an
 argument <code>L</code> that specifies a particular Lua state that the
@@ -937,8 +982,9 @@ state. For example:</p>
 <span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
 <span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;return a&quot;</span>, <span class="at">L =</span> L1)</span>
 <span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span></code></pre></div>
-<p>There is no <code>lua_close</code> in luajr because Lua states are
-closed automatically when they are garbage collected in R.</p>
+<p>There is no <code>lua_close</code> in <code>luajr</code> because Lua
+states are closed automatically when they are garbage collected in
+R.</p>
 <p><code>lua_reset()</code> resets the default Lua state:</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;a = 2&quot;</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="fu">lua</span>(<span class="st">&quot;return a&quot;</span>)</span>
@@ -951,11 +997,10 @@ closed automatically when they are garbage collected in R.</p>
 memory previously used by <code>L</code> will be cleaned up at the next
 garbage collection.</p>
 </div>
-<div id="further-reading" class="section level1">
-<h1>Further reading</h1>
-<p>For notes on the <code>luajr</code> Lua module – which contains
-functions and types for interacting with R from Lua code – see
-<code>vignette(&quot;luajr-module&quot;)</code>.</p>
+<div id="further-reading" class="section level2">
+<h2>Further reading</h2>
+<p>For notes on how to create and manipulate R objects – such as
+vectors, lists, and data.frames – in your Lua code, see the <a href="objects.html">R objects in Lua code</a> vignette.</p>
 </div>
 
 

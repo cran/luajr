@@ -14,25 +14,25 @@ knitr::opts_chunk$set(
 )
 ```
 
-luajr allows you to run [Lua](https://www.lua.org) code from R.
+`luajr` allows you to run [Lua](https://www.lua.org) code from R.
 
 Lua is a lightweight, simple, and fast scripting language that is used in a 
 variety of settings. The standard Lua interpreter is already reasonably fast, 
 but there is also a just-in-time compiler for Lua called 
-[LuaJIT](https://luajit.org) that is even faster. luajr uses LuaJIT.
+[LuaJIT](https://luajit.org) that is even faster. `luajr` uses LuaJIT.
 
-This is **not** a guide to Lua or LuaJIT; it is a quick-start guide to luajr for
-people who already know how to program in Lua. See the 
+This is **not** a guide to Lua or LuaJIT; it is a quick-start guide to 
+`luajr` for people who already know how to program in Lua. See the 
 [Lua web site](https://www.lua.org) for resources related to coding in Lua.
 
-# Running Lua code: `lua()` and `lua_shell()`
+## Running Lua code: `lua()` and `lua_shell()`
 
 ```{r setup}
 library(luajr)
 ```
 
-To get a feel for luajr or to run "one-off" Lua code from your R project, use
-`lua()` and `lua_shell()`.
+To get a feel for `luajr` or to run "one-off" Lua code from your R project, 
+use `lua()` and `lua_shell()`.
 
 When you pass a character string to `lua()`, it is run as Lua code:
 
@@ -47,7 +47,7 @@ lua("my_animal = 'walrus'")
 lua("return my_animal")
 ```
 
-This is because luajr maintains a "default Lua state" which holds all global 
+This is because `luajr` maintains a "default Lua state" which holds all global 
 variables. This default Lua state is opened the first time a package function
 is used. You can create your own, separate Lua states, or reset the default Lua
 state (see [Lua states](#states), below).
@@ -76,10 +76,10 @@ source file, instead of running the contents of a string.
 Call `lua_shell()` to open an interactive Lua shell at the R prompt. This can 
 can be helpful for debugging or for testing Lua statements.
 
-# Calling Lua functions from R: `lua_func()`
+## Calling Lua functions from R: `lua_func()`
 
-The key piece of functionality for luajr is probably `lua_func()`. This allows 
-you to call Lua functions from R.
+The key piece of functionality for `luajr` is probably `lua_func()`. This 
+allows you to call Lua functions from R.
 
 The first argument to `lua_func()`, `func`, is a string that should evaluate to 
 a Lua function. `lua_func()` then returns an R function that can be used to call
@@ -217,32 +217,32 @@ print(x)
 Here, because we are returning a modified value, we can add elements to the list
 (`f3`) and change whole entries of the list (`f4`).
 
-# Benchmarking
+## Benchmarking
 
 In the same way that using R packages 
-[cpp11](https://CRAN.R-project.org/package=cpp11) or 
-[Rcpp](https://CRAN.R-project.org/package=Rcpp) allows you to 
-bridge your R code with C++ code that runs faster than R, you can use `luajr` to 
-bridge your R code with Lua code that runs faster than R.
+[`cpp11`](https://CRAN.R-project.org/package=cpp11) or 
+[`Rcpp`](https://CRAN.R-project.org/package=Rcpp) allows you to 
+bridge your R code with C++ code that runs faster than R, you can use `luajr` 
+to bridge your R code with Lua code that runs faster than R.
 
 In general, C/C++ code runs about 5-1,000 times faster than the equivalent R 
 code.
 
-In my experience, luajr code often presents a similar speedup, about the same as
-C/C++ code, or in the worst case, maybe half as fast. Sometimes luajr code can
-be faster than C/C++, though usually it isn't quite as good. 
+In my experience, `luajr` code often presents a similar speedup, about the 
+same as C/C++ code, or in the worst case, maybe half as fast. Sometimes 
+`luajr` code can be faster than C/C++, though usually it isn't quite as good. 
 
-Why use luajr then? Rcpp and cpp11 require a C++ toolchain (e.g. gcc, clang, 
-etc.) and requires long compilation times, whereas luajr doesn't. This means 
-that luajr is usable when a C++ compiler isn't available, or when compilation 
-times are prohibitive or an annoyance.
+Why use `luajr` then? `Rcpp` and `cpp11` require a C++ toolchain (e.g. 
+gcc, clang, etc.) and requires long compilation times, whereas `luajr` 
+doesn't. This means that `luajr` is usable when a C++ compiler isn't 
+available, or when compilation times are prohibitive or an annoyance.
 
 In the following section, we look at two aspects of benchmarking. In the first
 example, we compare different ways of passing vectors to Lua functions relative
 to R. In the second example, we compare more fundamentally the difference in
-running a whole algorithm in Lua versus R. 
+running a whole algorithm in Lua versus R versus C++ with `Rcpp`. 
 
-## Parameter passing example: sum of squares
+### Parameter passing example: sum of squares
 
 For reasonably long vectors, passing by reference (`'r'`) is faster than passing 
 by value (`'v'`), which is faster than passing by simplify (`'s'`, `'a'`, or 
@@ -300,12 +300,12 @@ fastest, but the other methods are all comparable.
 
 When the vector is 10,000,000 elements long, the story is similar. 
 
-This is an example where luajr doesn't add that much speed&mdash;the function 
-is relatively short, and there is a certain amount of overhead in invoking it, 
-while the R function doesn't have the overhead of transferring control between 
-languages.
+This is an example where `luajr` doesn't add that much speed&mdash;the 
+function is relatively short, and there is a certain amount of overhead in 
+invoking it, while the R function doesn't have the overhead of transferring 
+control between languages.
 
-## Processing time example: logistic map
+### Processing time example: logistic map
 
 Consider the following:
 
@@ -353,34 +353,77 @@ logistic_map_L = lua_func(
     
     return result
 end", "sssr")
+
+# To be compiled using Rcpp::cppFunction()
+logistic_map_C =
+'DataFrame logistic_map(double x0, unsigned int burn, unsigned int iter, NumericVector A)
+{
+    unsigned int dflen = A.length() * iter;
+    NumericVector da(dflen, 0);
+    NumericVector dx(dflen, 0);
+    
+    unsigned int j = 0;
+    for (auto a : A)
+    {
+        double x = x0;
+        for (unsigned int i = 0; i < burn; ++i)
+            x = a * x * (1 - x);
+        for (unsigned int i = 0; i < iter; ++i, ++j)
+        {
+            dx[j] = x;
+            da[j] = a;
+            x = a * x * (1 - x);
+        }
+    }
+
+    return DataFrame::create(Named("a") = da, Named("x") = dx);
+}'
 ```
 
-Here we are comparing two different versions (R versus Lua) of running a 
+Here we are comparing three different versions (R, Lua, C++) of running a 
 parameter sweep of the logistic map, a chaotic dynamical system popularized by 
-Bob May in a [1976 Nature article](https://sites.ifi.unicamp.br/aguiar/files/2014/10/May-Nature-1976.pdf).
+Bob May in a [1976 Nature article](https://abel.math.harvard.edu/archive/118r_spring_05/docs/may.pdf).
 The output looks like this:
 
 ```{r}
-logistic_map = logistic_map_L(0.5, 50, 100, 200:385/100)
+#| fig.alt: >
+#|   Plot of fixed points of the logistic map chaotic dynamical system.
+#|   The input x-axis value a ranges from 2.0 to 3.85. Between 2.0 and 
+#|   3.0 there is a single fixed point; above 3.0 the fixed points exhibit
+#|   bifurcations and chaotic behaviour.
+logistic_map = logistic_map_L(0.5, 100, 100, 200:385/100)
 plot(logistic_map$a, logistic_map$x, pch = ".")
 ```
 
-The times taken by each function on a 2019-era MacBook Pro are as follows:
+In the code above, we don't actually compile the C++ code using `Rcpp`, 
+we only declare the source code as an illustration. I don't actually compile 
+the code in this article because I didn't want to have `luajr` depend on 
+`Rcpp` only for the sake of this vignette, but you would do so using
+`Rcpp::cppFunction(logistic_map_C)`.
 
-|Call                                         | Method            | Median runtime |
-|---------------------------------------------|-------------------|---------------:|
-|`logistic_map_R(0.5, 50, 100, 200:385/100))` | R function        |      1900 µs   |
-|`logistic_map_L(0.5, 50, 100, 200:385/100))` | Lua function      |     **200 µs** |
+The times taken by each function on a 2025-era MacBook Pro are as follows:
 
-The version written in Lua is around 10 times faster than the version in R. 
+|Call                                          | Method       | Median runtime |
+|----------------------------------------------|--------------|---------------:|
+|`logistic_map_R(0.5, 100, 100, 200:385/100))` | R function   |       850 µs   |
+|`logistic_map_L(0.5, 100, 100, 200:385/100))` | Lua function |      **80 µs** |
+|`logistic_map_C(0.5, 100, 100, 200:385/100))` | C++ function |       100 µs   |
 
-The speedup was much more notable in an earlier test where the R version first
-created the data frame and then performed the iteration, i.e. with the line
-`result$x[j] = x` instead of `result_x[j] = x`. The median runtime for that R
-version was two orders of magnitude slower; the extra overhead associated with
+The version written in Lua is around 10 times faster than the version in R, 
+and even somewhat outperforms `Rcpp`. Note that the relative speed of Lua 
+versus C++ depends on the number of iterations, and whether you use `Rcpp` or
+`cpp11`, which each seem to have marginal advantages in different cases. 
+Nonetheless, the Lua version seems to execute about as quickly as the C++ 
+version, within plus or minus 20%.
+
+The speedup of the Lua function relative to R was much more notable in an 
+earlier test where the R version first created the data frame and then 
+performed the iteration, i.e. with the line `result$x[j] = x` instead of 
+`result_x[j] = x`. The median runtime for that R version was two orders of 
+magnitude slower than the Lua version; the extra overhead associated with 
 `data.frame` methods was pointed out by Tim Taylor.
 
-# Working with Lua States: `lua_open()`, `lua_reset()` {#states}
+## Working with Lua States: `lua_open()`, `lua_reset()` {#states}
 
 All the functions mentioned above (`lua()`, `lua_shell()`, and `lua_func()`)
 can also take an argument `L` that specifies a particular Lua state that the
@@ -400,7 +443,7 @@ lua("return a")
 lua("return a", L = L1)
 ```
 
-There is no `lua_close` in luajr because Lua states are closed automatically 
+There is no `lua_close` in `luajr` because Lua states are closed automatically 
 when they are garbage collected in R.
 
 `lua_reset()` resets the default Lua state:
@@ -417,8 +460,9 @@ To reset a non-default Lua state `L` returned by `lua_open()`, just do
 `L = lua_open()` again. The memory previously used by `L` will be cleaned up at 
 the next garbage collection.
 
-# Further reading
+## Further reading
 
-For notes on the `luajr` Lua module -- which contains functions and types for
-interacting with R from Lua code -- see `vignette("luajr-module")`.
+For notes on how to create and manipulate R objects -- such as vectors, lists, 
+and data.frames -- in your Lua code, see the 
+[R objects in Lua code](objects.html) vignette.
 

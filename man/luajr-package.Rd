@@ -6,9 +6,7 @@
 \alias{luajr-package}
 \title{luajr: LuaJIT Scripting}
 \description{
-'luajr' provides an interface to \href{https://luajit.org}{LuaJIT}, a
-just-in-time compiler for the \href{https://www.lua.org}{Lua scripting language}.
-It allows users to run Lua code from R.
+An interface to 'LuaJIT' \url{https://luajit.org}, a just-in-time compiler for the 'Lua' scripting language \url{https://www.lua.org}. Allows users to run 'Lua' code from 'R'.
 }
 \section{The R API}{
 
@@ -16,9 +14,11 @@ It allows users to run Lua code from R.
 \item \code{\link[=lua]{lua()}}: run Lua code
 \item \code{\link[=lua_func]{lua_func()}}: make a Lua function callable from R
 \item \code{\link[=lua_shell]{lua_shell()}}: run an interactive Lua shell
+\item \code{\link[=lua_module]{lua_module()}}, \code{\link[=lua_import]{lua_import()}}: load Lua modules
 \item \code{\link[=lua_open]{lua_open()}}: create a new Lua state
 \item \code{\link[=lua_reset]{lua_reset()}}: reset the default Lua state
 \item \code{\link[=lua_parallel]{lua_parallel()}}: run Lua code in parallel
+\item \code{\link[=lua_mode]{lua_mode()}}, \code{\link[=lua_profile]{lua_profile()}}: debugger, profiler, and JIT options
 }
 }
 
@@ -51,3 +51,4 @@ Other contributors:
 }
 
 }
+\keyword{internal}
