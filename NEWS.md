@@ -1,3 +1,15 @@
+# luajr 0.2.1
+
+-   luajr's profiler has been overhauled to capture more complete profiling 
+    data in a data.frame. As a result, the format of the object returned by 
+    lua_profile() has changed.
+
+-   luajr now supports long vectors (i.e. vectors with 2^31 elements or more).
+    You should pass these into Lua using the `'r'` arg code for efficiency. 
+    Further details may be found in `vignette("objects")`. This addresses issue 
+    [#5](https://github.com/nicholasdavies/luajr/issues/5). Thanks to 
+    @waynelapierre for asking about long vectors!
+
 # luajr 0.2.0
 
 -   Added support for Lua modules using `lua_module()` and `lua_import()`. This 
@@ -27,7 +39,8 @@
     (e.g. with `io.read()`) -- previously, trying this would cause R to hang
     (at least from RStudio).
     
--   The Lua `os.exit()` function now ends Lua execution without crashing RStudio.
+-   The Lua `os.exit()` function now ends Lua execution without crashing 
+    RStudio.
 
 -   `lua_shell()` now stores commands in the R console history.
 

@@ -48,8 +48,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -60,7 +61,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -375,6 +376,8 @@ working with R <code>data.frame</code> and <code>matrix</code>
 types.</li>
 <li>Certain <a href="#constants">constants</a> defined by the
 <code>luajr</code> module.</li>
+<li>Considerations when using <a href="#longvec">long vectors</a> in
+Lua.</li>
 </ul>
 </div>
 <div id="vector" class="section level2">
@@ -708,6 +711,42 @@ careful not to mix Lua types and these R constants.</p>
 Lua through arg code <code>&quot;s&quot;</code>, it will come out as
 <code>nil</code> in Lua; but if you use arg code <code>&quot;r&quot;</code> or
 <code>&quot;v&quot;</code>, it will come out as <code>luajr.NULL</code>.</p>
+</div>
+<div id="longvec" class="section level2">
+<h2>Long vectors</h2>
+<p><code>luajr</code> can handle what are called “long vectors” in R
+(i.e., vectors with 2^31 elements or more), but there are some
+restrictions.</p>
+<p>Vector types are allocated in Lua, and they are limited to a maximum
+size of <code>luajr.max_alloc</code>, which is currently set to 2^37
+(i.e., 128 GiB). You can change <code>luajr.max_alloc</code> if you need
+to work with a larger vector. Note that if your vector is larger than
+R’s vector memory limit, you will not be able to return such a large
+vector back to R.</p>
+<p>Reference types are allocated by R, so their size is limited by R’s
+vector memory limit. This limit can be set and queried using the R
+function <code>mem.maxVSize()</code>.</p>
+<p>Long vectors can be passed from R into Lua using the <code>&quot;v&quot;</code>
+or <code>&quot;r&quot;</code> arg codes. Passing by reference will be much more
+efficient for large vectors, as this avoids making a copy of the
+data.</p>
+<p>There are limits on how large of a table you can create in Lua when
+using the <code>lua_createtable()</code> function, which is what
+<code>luajr</code> uses to allocate space for tables. This means that if
+you try to pass a large vector into Lua as an array (arg code
+<code>&quot;a&quot;</code> or <code>&quot;s&quot;</code>), the operation will fail if there
+are too many elements in the vector. The maximum number of elements is
+currently set by LuaJIT to 2^27, or just over 134 million elements. This
+is also the maximum length of an R <code>list</code> that can be passed
+into Lua.</p>
+<p>As of R 4.5.1, a <code>data.frame</code> cannot hold long vectors;
+nor can a <code>data.table</code> or <code>tibble</code>. However, a
+<code>list</code> can hold long vectors.</p>
+<p>If you are working with lots of data, you may want to keep it on the
+hard drive rather than trying to load it all into working memory. You
+could use something like C’s <a href="https://man7.org/linux/man-pages/man2/mmap.2.html"><code>mmap</code></a>
+for this, an R package like <a href="https://arrow.apache.org/docs/r/index.html"><code>arrow</code></a>,
+or something else.</p>
 </div>
 
 

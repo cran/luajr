@@ -72,6 +72,7 @@ extern "C" SEXP luajr_locate_debugger(SEXP path)
 static void finalize_lua_state(SEXP xptr)
 {
     lua_State* L = reinterpret_cast<lua_State*>(R_ExternalPtrAddr(xptr));
+    luajr_tooling_cleanup(L);
     RegistryEntry::DisarmAll(L);
     lua_close(L);
     R_ClearExternalPtr(xptr);
@@ -88,6 +89,7 @@ extern "C" SEXP luajr_reset()
 {
     if (L0)
     {
+        luajr_tooling_cleanup(L0);
         RegistryEntry::DisarmAll(L0);
         lua_close(L0);
         L0 = 0;
@@ -121,7 +123,7 @@ extern "C" lua_State* luajr_newstate()
     }
 
     // Load luajr bytecode
-    luajr_loadbuffer(l, luajr_module_bytecode.data(), luajr_module_bytecode.size(), "luajr Lua module");
+    luajr_loadbuffer(l, luajr_module_bytecode.data(), luajr_module_bytecode.size(), "=luajr module");
 
     // Run script: takes as arguments the full path to the luajr dylib and the
     // path to debugger.lua.
