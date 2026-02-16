@@ -1,8 +1,8 @@
-4dabb97381e61887bc19c1dbe0bd0871 *DESCRIPTION
+d6bcb43827f49085f721b1925d4ea563 *DESCRIPTION
 5dd5e1041844e44d3b4d1d353329c9a1 *LICENSE
 beeae3931afd717c673f882bf88840c5 *LICENSE.note
 1d70f1664681a8e5ed0f402b8edef8d6 *NAMESPACE
-af6bf84c636e281f93aebd200ca9495c *NEWS.md
+9f319adab93ffede27c2a04b2c38c7cc *NEWS.md
 042c78df0897f622018adac52345c479 *R/lua.R
 8648c300eb47e1303870d0b156215ccf *R/lua_func.R
 0ac3d851603c94e5de13d14494c62be9 *R/lua_internal.R
@@ -25,7 +25,7 @@ ea48150c63db2a1873e41e7b9667398a *inst/Lua/example.lua
 bd3c61ce5ca98724fa94600312e01b51 *inst/Lua/luajr.lua
 c574b116dbd752cf2392e4b9fe52b58f *inst/doc/luajr.R
 517c31c74195b3ae52e104a50543da10 *inst/doc/luajr.Rmd
-01517ad31075a8941465f2af0845844e *inst/doc/luajr.html
+457044430079a0efd5cc6beb1e39fa0f *inst/doc/luajr.html
 5e270ae6034b339c2a13d20a5f7d2dec *inst/doc/modules.R
 50aca296c120bf3d2cea52298da6bd82 *inst/doc/modules.Rmd
 8e071ab6c23bfee1a9d895807ab5e0c4 *inst/doc/modules.html
@@ -39,7 +39,7 @@ b3afb6630badf88a80ca234292fc7038 *inst/include/luajr.h
 8629787b42ebfe1e9bb972025e948d2d *inst/include/luajr_lauxlib.h
 c9e8da88f8462c327771c092fcd1daf6 *inst/include/luajr_lua.h
 3b6ba347d88c70491c7d32b07af0e6d2 *inst/include/luajr_luaconf.h
-c0a61c0ea57f9f2d386fb32ba77f7654 *inst/include/luajr_luajit.h
+1d177d3561d694dedbfb83f60ce4b30e *inst/include/luajr_luajit.h
 66042b8e669628029906864622832602 *inst/include/luajr_lualib.h
 32cb276b6dcaf4f2afe9e06868a42cfa *man/figures/README-pressure-1.png
 1e241c3d3f1d53dc0e713c86769cb6e7 *man/lua.Rd
@@ -212,7 +212,7 @@ b62567328729f9e64676fc57fc340993 *src/luajit/src/lj_prng.c
 7ebd94852038a289c1646f7b78e33942 *src/luajit/src/lj_prng.h
 1c027dc18015ae84bc86fc401d0eaa50 *src/luajit/src/lj_profile.c
 e264994aa9adbfe1d82131bdab64cafc *src/luajit/src/lj_profile.h
-bc1d746e7b9072ee722070798480f94a *src/luajit/src/lj_record.c
+a5a61eb0c2ad8355c3856c2b12f979d7 *src/luajit/src/lj_record.c
 8d8a2efeb8f0d6098464643dfada90a5 *src/luajit/src/lj_record.h
 52ce60c6cac83f75bb9b4e486cad9f4f *src/luajit/src/lj_serialize.c
 264e16f2ec6d7955ca57a1b730543c56 *src/luajit/src/lj_serialize.h
@@ -290,7 +290,7 @@ b5a929d5080aa6f6970cbc4b6039dc4c *tests/testthat/test-func.R
 8c52c09da04f187c02d48508523042c6 *tests/testthat/test-parallel.R
 e3cfea07783ede192234a898b94fe4df *tests/testthat/test-state.R
 554b02cfddc35c9a23dbf1369d19b949 *tests/testthat/test-types.R
-b519a18f45feda3bd993a66d1297cedb *tools/luajit_relver.txt
+32eec8017057066ed10fe0d03573dbdc *tools/luajit_relver.txt
 517c31c74195b3ae52e104a50543da10 *vignettes/luajr.Rmd
 50aca296c120bf3d2cea52298da6bd82 *vignettes/modules.Rmd
 ccfdf7e482c1491e53bed20c6639b108 *vignettes/objects.Rmd

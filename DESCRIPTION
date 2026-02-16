@@ -1,7 +1,7 @@
 Package: luajr
 Type: Package
 Title: 'LuaJIT' Scripting
-Version: 0.2.1
+Version: 0.2.2
 Authors@R: c(
     person("Mike", "Pall", role = c("aut", "cph"), 
         comment = "Author of the embedded LuaJIT compiler"),
@@ -26,7 +26,7 @@ RoxygenNote: 7.3.2
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: yes
-Packaged: 2026-02-15 21:02:07 UTC; nick
+Packaged: 2026-02-16 18:16:13 UTC; nick
 Author: Mike Pall [aut, cph] (Author of the embedded LuaJIT compiler),
   Lua.org, PUC-Rio [cph] (Copyright holders over portions of Lua source
     code included in LuaJIT),
@@ -36,4 +36,4 @@ Author: Mike Pall [aut, cph] (Author of the embedded LuaJIT compiler),
     embedded debugger.lua debugger)
 Maintainer: Nicholas Davies <nicholas.davies@lshtm.ac.uk>
 Repository: CRAN
-Date/Publication: 2026-02-15 21:20:02 UTC
+Date/Publication: 2026-02-16 19:50:02 UTC

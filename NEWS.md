@@ -1,3 +1,8 @@
+# luajr 0.2.2
+
+-   Updated LuaJIT to incorporate a key bugfix that would otherwise lead to
+    severe performance regressions on ARM64 (including recent Mac computers).
+
 # luajr 0.2.1
 
 -   luajr's profiler has been overhauled to capture more complete profiling 
