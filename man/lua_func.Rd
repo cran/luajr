@@ -4,7 +4,7 @@
 \alias{lua_func}
 \title{Make a Lua function callable from R}
 \usage{
-lua_func(func, argcode = "s", L = NULL)
+lua_func(func, argcode = ".", L = NULL)
 }
 \arguments{
 \item{func}{A character string with a Lua expression evaluating to a
@@ -20,57 +20,64 @@ An R function which can be called to invoke the Lua function.
 }
 \description{
 Takes any Lua expression (as a character string) that evaluates to a
-function and provides an R function that can be called to invoke the Lua
+Lua function and provides an R function that can be called to invoke the Lua
 function. Instead of a character string, you can also provide an external
 pointer to a Lua function (see examples).
 }
 \details{
-The R types that can be passed to Lua are: \code{NULL}, logical vector,
-integer vector, numeric vector, string vector, list, external pointer, and
-raw.
+Any R type can be passed to a Lua function. The R types that have special
+support in \pkg{luajr} are: \code{NULL}, logical vector, integer vector, numeric
+vector, character vector, list, function, environment, and external pointer.
 
-The parameter \code{argcode} is a string with one character for each argument of
-the Lua function, recycled as needed (e.g. so that a single character would
-apply to all arguments regardless of how many there are).
+The parameter \code{argcode} is a string that specifies type handling for each
+argument of the Lua function. The last type is repeated when there are more
+arguments than specified types.
 
-In the following, the corresponding character of \code{argcode} for a specific
-argument is referred to as its arg code.
+To receive a \code{luajr.logical} type in Lua, use the argcode \code{logical} or \code{L}.
+Similarly, \code{luajr.integer} is specified with \code{integer} or \code{I};
+\code{luajr.numeric} is specified with \code{numeric} or \code{N}; and \code{luajr.character} is
+specified with \code{character} or \code{C}. \code{luajr.list} is specified with \code{list},
+\code{vector}, or \code{V}.
 
-For \code{NULL} or any argument with length 0, the result in Lua is \strong{nil}
-regardless of the corresponding arg code.
+To receive a \code{luajr.rfunction} type, use \code{rfunction} or \code{F}. To receive a
+\code{luajr.environment} type, use \code{environment} or \code{E}. To receive an \code{R.sexp}
+type, use \code{sexp} or \code{S}.
 
-For logical, integer, double, and character vectors, if the corresponding
-arg code is \code{'s'} (simplify), then if the R vector has length one, it is
-supplied as a Lua primitive (boolean, number, number, or string,
-respectively), and if length > 1, as an array, i.e. a table with integer
-indices starting at 1. If the code is \code{'a'}, the vector is always supplied as
-an array, even if it only has length 1. If the arg code is the digit \code{'1'}
-through \code{'9'}, this is the same as \code{'s'}, but the vector is required to have
-that specific length, otherwise an error message is emitted.
+To pass any R type as "closest available" type from the above, use the
+argcode \code{auto} or \code{"."}.
 
-Still focusing on the same vector types, if the arg code is \code{'r'}, then the
-vector is passed \emph{by reference} to Lua, adopting the type \code{luajr.logical_r},
-\code{luajr.integer_r}, \code{luajr.numeric_r}, or \code{luajr.character_r} as appropriate.
-If the arg code is \code{'v'}, the vector is passed \emph{by value} to Lua,
-adopting the type \code{luajr.logical}, \code{luajr.integer}, \code{luajr.numeric}, or
-\code{luajr.character} as appropriate.
+Argcodes should be separated by commas. If you are using a "single-character"
+argcode like \code{.} or \code{S}, there does not need to be a comma following it.
 
-For a raw vector, only the \code{'s'} type is accepted and the result in Lua is
-a string (potentially with embedded nulls).
+You can also receive R values as Lua native types. Specifically, the argcode
+\code{function} corresponds to a Lua function; \code{boolean} is a Lua boolean;
+\code{number} is a Lua number; \code{string} is a Lua string and \code{table} is a Lua
+table. \code{pointer} or \code{P} passes an external pointer (EXTPTRSXP) as a Lua
+light userdata. The argcode \code{native} selects the closest available native
+type.
 
-For lists, if the arg code is \code{'s'} (simplify), the list is passed as a Lua
-table. Any entries of the list with non-blank names are named in the table,
-while unnamed entries have the associated integer key in the table. Note that
-Lua does not preserve the order of entries in tables. This means that an R
-list with names will often go "out of order" when passed into Lua with \code{'s'}
-and then returned back to R. This is avoided with arg code \code{'r'} or \code{'v'}.
+Additionally, the prefix \code{$} specifies that the type should be passed as a
+Lua native type. So \verb{$auto} is equivalent to \code{native} and \verb{$C} is equivalent
+to \code{string}.
 
-If a list is passed in with the arg code \code{'r'} or \code{'v'}, the list is
-passed to Lua as type \code{luajr.list}, and all vector elements of the list are
-passed by reference or by value, respectively.
+Note that native scalar argcodes (e.g. \verb{$L}, \verb{$I}, \verb{$N}, \verb{$C}, \code{boolean},
+\code{number}, \code{string}) do not preserve R's \code{NA} values, because Lua has no
+\code{NA} concept: an R \code{NA} of any type is passed as Lua \code{nil}, which a
+non-strict argcode silently treats as missing. Plain \code{NaN} values (e.g.
+from \code{0/0}) do survive as Lua \code{NaN} because they are distinct from R's
+\code{NA_real_}. To preserve typed \code{NA}s on a round-trip, pass values through a
+\code{luajr} vector type (e.g. \code{luajr.numeric}, \code{luajr.logical}) instead of the
+native scalar form, and read individual elements in Lua via \code{v(i)} (which
+returns a length-1 vector of the same type rather than a bare scalar).
 
-For external pointers, the arg code is ignored and the external pointer is
-passed to Lua as type \strong{userdata}.
+The prefix \code{!} specifies strict type handling (i.e., error if the type cannot
+be converted). \code{!} also yields an error on passing \code{NULL} if the argcode
+specifies a Lua native type (otherwise, \code{NULL} gets passed as Lua \code{nil}).
+
+The prefix \code{&} can be used with logical, integer, numeric, character, or
+generic (list) vectors and specifies that the value should be passed
+\strong{by reference}. Vectors passed by reference can have their elements
+mutated in Lua code, but they cannot be resized.
 
 When the function is called and Lua values are returned from the function,
 the Lua return values are converted to R values as follows.
@@ -79,9 +86,9 @@ If nothing is returned, the function returns \code{invisible()} (i.e. \code{NULL
 
 If multiple arguments are returned, a list with all arguments is returned.
 
-Reference types (e.g. \code{luajr.logical_r}) and vector types (e.g.
-\code{luajr.logical}) are returned to R as such. A \code{luajr.list} is returned as an
-R list. Reference and list types respect R attributes set within Lua code.
+Vector types (e.g. \code{luajr.logical}) are returned to R as the corresponding R
+vector. A \code{luajr.list} is returned as an R list. Vector and list types
+respect R attributes set within Lua code.
 
 A \strong{table} is returned as a list. In the list, any table entries with a
 number key come first (with indices 1 to n, i.e. the original number key's
@@ -100,12 +107,12 @@ as the \code{func} argument.
 }
 \examples{
 # use with a character string
-squared <- lua_func("function(x) return x^2 end")
+squared <- lua_func("function(x) return x^2 end", "$.")
 print(squared(7))
 
 # use with an external pointer to a Lua function
 times2ptr <- lua("return function(x) return 2 * x end")
 print(times2ptr)
-times2 <- lua_func(times2ptr)
+times2 <- lua_func(times2ptr, "$.")
 print(times2(14))
 }

@@ -12,7 +12,7 @@
 #'
 #' `mymod <- lua_module("Lua/mymodule.lua", package = "mypackage")`
 #'
-#' `func <- function(x, y) lua_import(mymod, "myfunc", "s")`
+#' `func <- function(x, y) lua_import(mymod, "myfunc", ".")`
 #'
 #' @section Module files:
 #'
@@ -65,18 +65,21 @@
 #'
 #' If you are creating a package and you want to load your module into a
 #' specific Lua state, you will need to create that state and assign it to
-#' `module$L` after the package is loaded, probably by using [.onLoad()].
+#' `module$L` after the package is loaded, probably by using [.onLoad()]. An
+#' assignment to `module$L` only works when done before any module functions or
+#' variables are used; after the first use of any module value, changing
+#' `module$L` has no effect.
 #'
 #' @section Importing functions:
 #'
 #' To import a function from a module, declare it like this:
 #'
 #' ```R
-#' myfunc <- function(x, y) lua_import(mymod, "funcname", "s")
+#' myfunc <- function(x, y) lua_import(mymod, "funcname", ".")
 #' ```
 #'
 #' where `mymod` is the previously-declared module object, `"funcname"` is the
-#' function name within the Lua module, and `"s"` is whatever
+#' function name within the Lua module, and `"."` is whatever
 #' [arg code][lua_func()] you want to use. Note that `lua_import()` must be used
 #' as the only statement in your function body and you should **not** enclose
 #' it in braces (`{}`). The arguments of `myfunc` will be passed to the
@@ -94,7 +97,7 @@
 #' "two-step" process like this:
 #'
 #' ```R
-#' greet0 <- function(name) lua_import(mymod, "greet", "s")
+#' greet0 <- function(name) lua_import(mymod, "greet", "$.")
 #' greet <- function(name) {
 #'     if (!is.character(name)) {
 #'         stop("greet expects a character string.")
@@ -124,9 +127,9 @@
 #' the module with e.g. `module[] = foo`.
 #'
 #' By default, when setting a module value using `module[i] <- value`, the
-#' value is passed to Lua "by simplify" (e.g. with [arg code][lua_func()]
-#' `"s"`). You can change this behaviour with the `as` argument. For example,
-#' `module[i, as = "a"] <- 2` will set element `i` of the module to a Lua
+#' value is passed as a Lua native type (e.g. with [arg code][lua_func()]
+#' `"$."`). You can change this behaviour with the `as` argument. For example,
+#' `module[i, as = "table"] <- 2` will set element `i` of the module to a Lua
 #' table `{2}` instead of the plain value `2`.
 #'
 #' @param filename Name of file from which to load the module. If this is a
@@ -140,7 +143,7 @@
 #' @return [lua_module()] returns an environment with class `"luajr_module"`.
 #' @examples
 #' module <- lua_module(c("Lua", "example.lua"), package = "luajr")
-#' greet <- function(name) lua_import(module, "greet", "s")
+#' greet <- function(name) lua_import(module, "greet", "$.")
 #' greet("Janet")
 #' greet("Nick")
 #' @export
@@ -188,16 +191,19 @@ lua_import = function(module, name, argcode)
     load_module(module)
 
     # Get module entry
-    fx = .Call(`_luajr_module_get`, module[["mod"]], list(name), "function");
+    fx = .Call(`_luajr_moduleget`, module[["mod"]], list(name), "function")
+
+    # Interpret argcode
+    argcode = interpret_argcode(argcode)
 
     # Create new body for R function which directly calls the Lua function
     R_body = quote({
-        ret = .Call(`_luajr_func_call`, FX, ARGS, ARGCODE, L);
+        ret = .Call(`_luajr_fcall`, FX, ARGS, ARGCODE, L);
         if (is.null(ret)) invisible() else ret
     })
-    # Reassign _luajr_func_call through L above
+    # Reassign _luajr_fcall through L above
     R_body[[2]][[3]][2:6] = list(
-        `_luajr_func_call`$address,
+        `_luajr_fcall`$address,
         fx,
         as.call(lapply(c("list", names(formals(R_func))), as.name)),
         argcode,
@@ -214,7 +220,7 @@ lua_import = function(module, name, argcode)
     # We have to do this in a slightly roundabout way to ensure we get
     # the function arguments from the correct calling frame.
     evaluated_args = as.list(match.call(definition = sys.function(-1), call = sys.call(-1)))[-1]
-    ret = .Call(`_luajr_func_call`, fx, evaluated_args, argcode, module[["L"]])
+    ret = .Call(`_luajr_fcall`, fx, evaluated_args, argcode, module[["L"]])
     if (is.null(ret)) invisible() else ret
 }
 
@@ -248,26 +254,29 @@ print.luajr_module = function(x, ...)
 
     # This seems to be needed for the [ method.
     if (missing(..1)) {
-        .Call(`_luajr_module_get`, x[["mod"]], list(), NULL)
+        .Call(`_luajr_moduleget`, x[["mod"]], list(), NULL)
     } else {
-        .Call(`_luajr_module_get`, x[["mod"]], list(...), NULL)
+        .Call(`_luajr_moduleget`, x[["mod"]], list(...), NULL)
     }
 }
 
 #' @keywords internal
 #' @export
-`[<-.luajr_module` = function(x, ..., as = "s", value)
+`[<-.luajr_module` = function(x, ..., as = "$.", value)
 {
     stopifnot(inherits(x, "luajr_module"))
 
     # Ensure module is initialized
     load_module(x)
 
+    # Interpret argcode
+    as = interpret_argcode(as)
+
     # This seems to be needed for the [ method.
     if (missing(..1)) {
-        .Call(`_luajr_module_set`, x[["mod"]], list(), as, value)
+        .Call(`_luajr_moduleset`, x[["mod"]], list(), as, value)
     } else {
-        .Call(`_luajr_module_set`, x[["mod"]], list(...), as, value)
+        .Call(`_luajr_moduleset`, x[["mod"]], list(...), as, value)
     }
 
     return (x)
@@ -293,7 +302,7 @@ load_module = function(module)
                 package = module[["package"]]
             )
         }
-        module[["mod"]] = .Call(`_luajr_module_load`, file, module[["L"]])
+        module[["mod"]] = .Call(`_luajr_loadmodule`, file, module[["L"]])
     }
 
     # Lock the module to prevent later changes

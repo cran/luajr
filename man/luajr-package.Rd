@@ -10,21 +10,40 @@ An interface to 'LuaJIT' \url{https://luajit.org}, a just-in-time compiler for t
 }
 \section{The R API}{
 
+
+You can use these functions to run Lua code from R:
 \itemize{
-\item \code{\link[=lua]{lua()}}: run Lua code
+\item \code{\link[=lua]{lua()}}: run Lua code from a string or file
 \item \code{\link[=lua_func]{lua_func()}}: make a Lua function callable from R
 \item \code{\link[=lua_shell]{lua_shell()}}: run an interactive Lua shell
 \item \code{\link[=lua_module]{lua_module()}}, \code{\link[=lua_import]{lua_import()}}: load Lua modules
 \item \code{\link[=lua_open]{lua_open()}}: create a new Lua state
 \item \code{\link[=lua_reset]{lua_reset()}}: reset the default Lua state
-\item \code{\link[=lua_parallel]{lua_parallel()}}: run Lua code in parallel
 \item \code{\link[=lua_mode]{lua_mode()}}, \code{\link[=lua_profile]{lua_profile()}}: debugger, profiler, and JIT options
 }
 }
 
+\section{The Lua API}{
+
+
+In your Lua code, you can use the \code{luajr} module and the \code{R}
+module to interact with R functions, values, and types.
+
+The \code{luajr} module offers higher-level access to R functions and types,
+similar to the convenience API offered by \pkg{Rcpp} or \pkg{cpp11} for use
+in C++. See \code{vignette("luajr-module")} for more details.
+
+The \code{R} module offers lower-level access to R functions and types,
+similar to R's built-in C API. See \code{vignette("R-module")} for more details.
+}
+
 \section{Further reading}{
 
-For an introduction to 'luajr', see \code{vignette("luajr")}
+
+For an introduction to \pkg{luajr}, see \code{vignette("luajr")}.
+
+For a guide to writing Lua modules for use from your R package or project,
+see \code{vignette("modules")}.
 }
 
 \seealso{

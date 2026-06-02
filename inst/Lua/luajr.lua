@@ -4,13 +4,11 @@
 -- 0. PRELIMINARIES --
 -- 1. INTERNAL API --
 -- 2. LUAJR API BASICS --
--- 3. REFERENCE TYPES --
--- 4. VECTOR TYPES --
--- 5. LIST TYPE --
--- 6. PASS TO LUA --
--- 7. RETURN TO R --
--- 8. EXTRA TYPES --
--- 9. DEBUGGER --
+-- 3. VECTOR TYPES --
+-- 4. EXTRA TYPES --
+-- 5. PARALLEL --
+-- 6. DEBUGGER --
+
 
 
 ----------------------
@@ -24,118 +22,95 @@ local ffi = require("ffi")
 table.new = require("table.new")
 table.clear = require("table.clear")
 
--- Script receives the path to the luajr R package dylib as argument
-local luajr_dylib_path = ({...})[1]
+-- Load R module
+local R = require("R")
 
--- Script also receives the path to debugger.lua as argument
+-- Script receives:
+-- 1 path to the luajr R package dylib
+-- 2 path to debugger.lua
+-- 3 named table of lua_CFunctions
+local luajr_dylib_path  = ({...})[1]
 local debugger_lua_path = ({...})[2]
+local cfuncs            = ({...})[3]
+
+-- Capture the cfunctions used in hot paths as locals.
+local to_sexp_cf    = cfuncs.tosexp
+local from_sexp     = cfuncs.fromsexp
+local this_state_cf = cfuncs.thisstate
+
+-- Argcode constants, reflect AC namespace in src/shared.h
+local ac_value = 0
+local ac_reference = 64
+
+-- to_sexp: inline scalar conversions and fall through to C++ for others
+local to_sexp = function(v)
+    local t = type(v)
+    if     t == "number"  then return R.ScalarReal(v)
+    elseif t == "string"  then return R.ScalarString(R.mkChar(v))
+    elseif t == "boolean" then return R.ScalarLogical(v)
+    elseif t == "nil"     then return R.NilValue
+    else return to_sexp_cf(v)
+    end
+end
 
 -- Null pointer object
 local nullptr = ffi.cast("void*", 0)
 
--- "Hidden" sentinel object
+-- Pointer-to-pointer type for writing pointer values
+local voidpp = ffi.typeof("void**")
+
+-- Pointer-to-sexp type for writing SEXP values
+local sexpp  = ffi.typeof("SEXP*")
+
+-- "Hidden" sentinel object (unused)
 ffi.cdef[[ typedef struct { int a; } HIDDEN_t; ]]
 local hidden = ffi.new("HIDDEN_t")
+
 
 
 ---------------------
 -- 1. INTERNAL API --
 ---------------------
 
--- Load 'internal' API for interfacing with R (see ./src/lua_api.cpp)
+-- 'Internal' API for interfacing with C, R; struct types
 ffi.cdef[[
 // Forward declarations
 struct SEXPREC;
+struct lua_State;
+typedef struct lua_State lua_State;
 typedef struct SEXPREC* SEXP;
 
-// Type codes
-enum
-{
-    LOGICAL_R = 0, INTEGER_R = 1, NUMERIC_R = 2, CHARACTER_R = 3,
-    LOGICAL_V = 4, INTEGER_V = 5, NUMERIC_V = 6, CHARACTER_V = 7,
-    LIST_T = 8, NULL_T = 16
-};
+// R vector types
+typedef struct { int* p;    SEXP s; double n; double c; } logical_t;
+typedef struct { int* p;    SEXP s; double n; double c; } integer_t;
+typedef struct { double* p; SEXP s; double n; double c; } numeric_t;
+typedef struct { SEXP* p;   SEXP s; double n; double c; } character_t;
+typedef struct { SEXP* p;   SEXP s; double n; double c; } list_t;
 
-// Reference types
-typedef struct { int* _p;    SEXP _s; } logical_rt;
-typedef struct { int* _p;    SEXP _s; } integer_rt;
-typedef struct { double* _p; SEXP _s; } numeric_rt;
-typedef struct { SEXP _s; } character_rt;
+// Other R types
+typedef struct { SEXP s; } environment_t;
+typedef struct { SEXP s; SEXP cached; } function_t;
 
-// Vector types
-typedef struct { int* p;    double n; double c; } logical_vt;
-typedef struct { int* p;    double n; double c; } integer_vt;
-typedef struct { double* p; double n; double c; } numeric_vt;
+// Other luajr types
+typedef struct { lua_State** l; int n; } workers_t;
 
-// Dummy NULL type
-typedef struct { int _; } NULL_t;
-
-// NA values
-extern int TRUE_logical;
-extern int FALSE_logical;
-extern int NA_logical;
-extern int NA_integer;
-extern double NA_real;
-extern SEXP NA_character;
-
-// Functions to populate reference types
-void SetLogicalRef(logical_rt* x, SEXP s);
-void SetIntegerRef(integer_rt* x, SEXP s);
-void SetNumericRef(numeric_rt* x, SEXP s);
-void SetCharacterRef(character_rt* x, SEXP s);
-
-// Functions to allocate reference types
-// The Alloc* functions call R_PreserveObject() on the underlying SEXP, so we
-// call Release in garbage collection for the corresponding R_ReleaseObject().
-void AllocLogical(logical_rt* x, ptrdiff_t size);
-void AllocInteger(integer_rt* x, ptrdiff_t size);
-void AllocIntegerCompact1N(integer_rt* x, ptrdiff_t N);
-void AllocNumeric(numeric_rt* x, ptrdiff_t size);
-void AllocCharacter(character_rt* x, ptrdiff_t size);
-void AllocCharacterNA(character_rt* x, ptrdiff_t size);
-void AllocCharacterTo(character_rt* x, ptrdiff_t size, const char* v);
-void Release(SEXP s);
-
-// Functions to populate vector types
-void SetLogicalVec(logical_vt* x, SEXP s);
-void SetIntegerVec(integer_vt* x, SEXP s);
-void SetNumericVec(numeric_vt* x, SEXP s);
-// character handled separately
-
-// Functions to get attributes
-int GetAttrType(SEXP s, const char* k);
-SEXP GetAttrSEXP(SEXP s, const char* k);
-
-// Functions to set attributes
-void SetAttrLogicalRef(SEXP s, const char* k, logical_rt* v);
-void SetAttrIntegerRef(SEXP s, const char* k, integer_rt* v);
-void SetAttrNumericRef(SEXP s, const char* k, numeric_rt* v);
-void SetAttrCharacterRef(SEXP s, const char* k, character_rt* v);
-void SetMatrixColnamesCharacterRef(SEXP s, character_rt* v);
-
-// To get/set string vectors
-const char* GetCharacterElt(SEXP s, ptrdiff_t k);
-void SetCharacterElt(SEXP s, ptrdiff_t k, const char* v);
-
-// Set *ptr = val
-void SetPtr(void** ptr, void* val);
-
-// Returns length of object s; returns as a double to be larger than 32-bit,
-// but still compatible with Lua's single number type.
-double SEXP_length(SEXP s);
-
-// Read line from R console
-int R_ReadConsole(const char* prompt, unsigned char* buf, int buflen, int hist);
-void R_FlushConsole();
-
-// For vector types' manual memory management
-void* malloc(size_t size);
-void free(void* ptr);
-
-// Other C functions
+// C functions
+void* memcpy(void* dest, const void* src, size_t count);
 size_t strlen(const char* str);
+
+// Parallel functionality
+int luajr_parallel_ncores();
+void luajr_parallel_newworkers(lua_State* L, workers_t* w);
+void luajr_parallel_closeworkers(workers_t* w);
+void luajr_parallel_srun(lua_State* L, workers_t* w);
+void luajr_parallel_prun(lua_State* L, workers_t* w);
+void luajr_parallel_pfor(lua_State* L, workers_t* w, int i0, int i1);
 ]]
 local internal = ffi.load(luajr_dylib_path)
+
+-- Cache the current lua_State
+local this_state = ffi.cast("lua_State*", this_state_cf())
+
 
 
 -------------------------
@@ -151,17 +126,22 @@ function package.preload.luajr()
 end
 
 -- TRUE, FALSE, NA, NULL definitions
-luajr.TRUE          = internal.TRUE_logical
-luajr.FALSE         = internal.FALSE_logical
-luajr.NA_logical_   = internal.NA_logical
-luajr.NA_integer_   = internal.NA_integer
-luajr.NA_real_      = internal.NA_real
-luajr.NA_character_ = internal.NA_character
-luajr.NULL          = ffi.new("NULL_t")
+luajr.TRUE          = R.TRUE
+luajr.FALSE         = R.FALSE
+luajr.NA_logical_   = R.NA_LOGICAL
+luajr.NA_integer_   = R.NA_INTEGER
+luajr.NA_real_      = R.NA_REAL
+luajr.NA_character_ = R.NA_STRING
+luajr.NULL          = R.NilValue
+
+-- Install all C lua_CFunctions onto the luajr table.
+for name, fn in pairs(cfuncs) do luajr[name] = fn end
+
+-- Override luajr.to_sexp with the hybrid Lua wrapper so scalar conversions
+-- stay JIT-traceable (see definition near the top of this file).
+luajr.to_sexp = to_sexp
 
 -- Forward declarations
-local sexp_get_attr
-local sexp_set_attr
 local vectorish
 
 -- Buffer for luajr.readline
@@ -173,427 +153,513 @@ function luajr.readline(prompt)
         buf = ffi.new("unsigned char[1024]")
     end
 
-    internal.R_FlushConsole()
-    internal.R_ReadConsole(prompt or "", buf, 1024, 0)
+    R.FlushConsole()
+    R.ReadConsole(prompt or "", buf, 1024, 0)
 
     -- remove terminating newline, but guard against 0-length string
     local len = ffi.C.strlen(buf)
     return ffi.string(buf, len == 0 and 0 or len - 1)
 end
 
--- Malloc and sizeof helpers
--- ffi.sizeof() fails if the calculated size is larger than 2^31-1 bytes,
--- as does ffi.new() (see lj_ctype_vlsize in lj_ctype.c). We use malloc
--- directly for vector allocations, so the limit on ffi.new() does not restrict
--- the size of allocated vector types. But we need a special version of
--- ffi.sizeof() for use with vector types in order to be able to work with
--- larger chunks of memory. We also use a wrapper around ffi.C.malloc() to
--- limit allocation size to 128 GiB, which can be overwritten by changing
--- luajr.max_alloc below.
-luajr.max_alloc = 2^37
-
-local malloc = function(size)
-    if (size > luajr.max_alloc) then
-        error(string.format("Cannot allocate a block larger than " ..
-            luajr.max_alloc / 1024^3 .. " GiB. Requested size: " ..
-            size / 1024^3 .. " GiB."))
+-- Get nparams and isvararg for a Lua function, plus argument names.
+-- Called from C++ (luajr_finfo).
+function luajr.get_func_info(f)
+    local info = debug.getinfo(f, "u")
+    local arg_names = {}
+    for i = 1, info.nparams do
+        arg_names[i] = debug.getlocal(f, i)
     end
-    return ffi.C.malloc(size)
+    return info.nparams, info.isvararg and 1 or 0, arg_names
 end
 
+-- sizeof helper
+-- ffi.sizeof() fails if the calculated size is larger than 2^31-1 bytes.
+-- We need a special version of ffi.sizeof() for use with vector types in
+-- order to be able to work with larger chunks of memory.
 local sizeof = function(vtype, nelem)
     return ffi.sizeof(vtype, 1) * nelem
 end
 
 
-------------------------
--- 3. REFERENCE TYPES --
-------------------------
+---------------------
+-- 3. VECTOR TYPES --
+---------------------
 
--- Metatable for logical/integer/numeric reference types
-local mt_basic_r = function(allocator)
-    local mt = {
-        __new = function(ctype, init1, init2)
-            local self = ffi.new(ctype)
-            if init1 == hidden then
-                -- do nothing
-            elseif type(init1) == "number" then
-                allocator(self, init1)
-                if init2 ~= nil then
-                    for i = 1,#self do self._p[i] = init2 end
+-- Vector capacity flags
+-- TODO document
+local byref = -1
+local alias = -2
+
+-- Caches for CHARSXP <-> Lua string conversion
+local charsxp_read_cache = {}   -- CHARSXP (as double via bit cast) -> Lua string
+local charsxp_write_cache = {}  -- Lua string -> CHARSXP
+
+-- Helper: convert CHARSXP to Lua string or NA for reading (cached)
+local from_charsxp = function(v)
+    if v == R.NA_STRING then return R.NA_STRING end
+    local key = tonumber(ffi.cast("uintptr_t", v))
+    local s = charsxp_read_cache[key]
+    if s == nil then
+        s = ffi.string(R.CHAR(v))
+        charsxp_read_cache[key] = s
+    end
+    return s
+end
+
+-- Helper: convert Lua string or NA to CHARSXP for writing (cached)
+local to_charsxp = function(v)
+    if v == R.NA_STRING then return R.NA_STRING end
+    local ch = charsxp_write_cache[v]
+    if ch == nil then
+        ch = R.mkChar(v)
+        charsxp_write_cache[v] = ch
+    end
+    return ch
+end
+
+-- Helper: get names attribute if it exists and is STRSXP, else nil
+local get_names = function(s)
+    local names = R.getAttrib(s, R.NamesSymbol)
+    if R.TYPEOF(names) == R.STRSXP then return names end
+    return nil
+end
+
+-- Metatable for vector type
+-- typedef struct { ctype* p; SEXP s; double n; double c; } [vector]_t;
+local mt_vector_template = function(ct, stype, na_val, dataptr)
+    local vtype = ffi.typeof(ct .. "[?]") -- not used for character
+
+    -- Throw an error on an illegal use of a 'byref' vector
+    local byref_error = function(method)
+        error("cannot call " .. method .. " on a vector passed by reference", 3)
+    end
+
+    -- Type-specific element operations
+    local op_readv  -- (self, k) self[k] (with conversion)
+    local op_writev -- (self, k, v) self[k] = v (with conversion)
+    local op_write  -- (p, s, k, v) self(p,s)[k] = v (raw)
+    local op_fillv  -- (p, s, k, v, n) fill n elements of self starting at k with v (with conversion)
+    local op_copy   -- (p, s, k, p_src, n) copy n elements into self(p,s)[k], ..., self[k+n-1] from p_src (raw)
+    local op_copyv  -- (p, s, k, p_src, n) copy n elements into self(p,s)[k], ..., self[k+n-1] from p_src (with conversion)
+    local is_val    -- (v) true if v is a Lua type compatible with the vector
+    if stype == R.STRSXP then
+        op_readv = function(self, k) return from_charsxp(self.p[k]) end
+        op_writev = function(self, k, v) R.SET_STRING_ELT(self.s, k - 1, to_charsxp(v)) end
+        op_write = function(p, s, k, v) R.SET_STRING_ELT(s, k - 1, v) end
+        op_fillv = function(p, s, k, v, n)
+            local ch = to_charsxp(v)
+            for i = 0,n-1 do R.SET_STRING_ELT(s, k - 1 + i, ch) end
+        end
+        op_copy = function(p, s, k, p_src, n)
+            for i = 0,n-1 do R.SET_STRING_ELT(s, k - 1 + i, p_src[i + 1]) end
+        end
+        op_copyv = function(p, s, k, p_src, n)
+            for i = 0,n-1 do R.SET_STRING_ELT(s, k - 1 + i, to_charsxp(p_src[i + 1])) end
+        end
+        is_val = function(v) return type(v) == "string" or v == R.NA_STRING end
+    elseif stype == R.VECSXP then
+        -- Element of a list is itself a SEXP. On read, wrap based on TYPEOF
+        -- and the parent list's mode: byref-list -> byref children (writes
+        -- propagate, no resize); alias- or owned-list -> alias children
+        -- (COW). The alias/owned uniformity ensures the user experience is
+        -- the same across the alias->owned transition that happens when an
+        -- alias list is first mutated.
+        op_readv = function(self, k)
+            return from_sexp(self.p[k], (self.c == byref) and ac_reference or ac_value)
+        end
+        op_writev = function(self, k, v) R.SET_VECTOR_ELT(self.s, k - 1, to_sexp(v)) end
+        op_write = function(p, s, k, v) R.SET_VECTOR_ELT(s, k - 1, v) end
+        op_fillv = function(p, s, k, v, n)
+            local sx = to_sexp(v)
+            for i = 0,n-1 do R.SET_VECTOR_ELT(s, k - 1 + i, sx) end
+        end
+        op_copy = function(p, s, k, p_src, n)
+            for i = 0,n-1 do R.SET_VECTOR_ELT(s, k - 1 + i, p_src[i + 1]) end
+        end
+        op_copyv = function(p, s, k, p_src, n)
+            for i = 0,n-1 do R.SET_VECTOR_ELT(s, k - 1 + i, to_sexp(p_src[i + 1])) end
+        end
+        is_val = function(v) return v ~= nil end  -- accept anything coercible
+    else
+        op_readv = function(self, k) return self.p[k] end
+        op_writev = function(self, k, v) self.p[k] = v end
+        op_write = function(p, s, k, v) p[k] = v end
+        op_fillv = function(p, s, k, v, n)
+            for i = 0,n-1 do p[k + i] = v end
+        end
+        op_copy = function(p, s, k, p_src, n)
+            ffi.copy(p + k, p_src + 1, sizeof(vtype, n))
+        end
+        op_copyv = function(p, s, k, p_src, n)
+            for i = 0,n-1 do p[k + i] = p_src[i + 1] end
+        end
+        is_val = function(v) return type(v) == "number" or type(v) == "boolean" end
+    end
+
+    -- Helper function to set vector memory
+    -- params = { n }: n elements but don't set
+    -- params = { fill, n }: n copies of val
+    -- params = { p, n }: n elements from p (offset pointer, 1-based)
+    -- params = { copy, n }: elements from copy[i], i = 1 to n
+    -- params = { insert, insert_n, outer_p, outer_n }: outer_n elements from
+    --   outer_p (offset pointer), leaving gap of insert_n at position insert
+    -- params = { erase, erase_last, outer_p, outer_n }: outer_n elements from
+    --   outer_p (offset pointer), skipping positions erase..erase_last
+    -- returns number of elements in the result
+    local set = function(p, s, params)
+        local ns, nd = params.names_src, params.names_dst
+        if params.fill ~= nil then
+            op_fillv(p, s, 1, params.fill, params.n)
+        elseif params.p ~= nil then
+            op_copy(p, s, 1, params.p, params.n)
+            if nd and ns then
+                for i = 0, params.n - 1 do R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i)) end
+            end
+        elseif params.copy ~= nil then
+            op_copyv(p, s, 1, params.copy, params.n)
+            if nd and ns then
+                for i = 0, params.n - 1 do R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i)) end
+            end
+        elseif params.insert ~= nil then
+            if p == params.outer_p then
+                for j = params.outer_n, params.insert, -1 do
+                    op_write(p, s, j + params.insert_n, p[j])
                 end
-            elseif vectorish(init1) then
-                allocator(self, #init1)
-                for i = 1,#self do self._p[i] = init1[i] end
+                if nd then
+                    for j = params.outer_n - 1, params.insert - 1, -1 do
+                        R.SET_STRING_ELT(nd, j + params.insert_n, R.STRING_ELT(nd, j))
+                    end
+                    for j = params.insert - 1, params.insert + params.insert_n - 2 do
+                        R.SET_STRING_ELT(nd, j, R.BlankString)
+                    end
+                end
             else
-                error("Reference type must be initialised.")
+                op_copy(p, s, 1, params.outer_p, params.insert - 1)
+                op_copy(p, s, params.insert + params.insert_n,
+                    params.outer_p + params.insert - 1, params.outer_n - params.insert + 1)
+                if nd and ns then
+                    for i = 0, params.insert - 2 do R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i)) end
+                    for i = params.insert + params.insert_n - 1, params.insert_n + params.outer_n - 1 do
+                        R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i - params.insert_n))
+                    end
+                end
             end
-            return self
-        end,
-
-        __gc = function(x)
-            -- TODO from looking at R_ReleaseObject in memory.c, it seems like calling
-            -- this on an object that has not been preserved with R_PreserveObject is
-            -- harmless. It may involve a performance penalty, so ideally this could be
-            -- removed for pass-by-reference types. Note, same applies to mt_character_r.
-            internal.Release(x._s)
-        end,
-
-        __len = function(x)
-            return internal.SEXP_length(x._s)
-        end,
-
-        __index = function(x, k)
-            return x._p[k]
-        end,
-
-        __newindex = function(x, k, v)
-            x._p[k] = v
-        end,
-
-        __call = function(x, k, v)
-            if type(k) ~= "string" then
-                error("Can only set string-keyed attributes.")
+            return params.insert_n + params.outer_n
+        elseif params.erase ~= nil then
+            if p ~= params.outer_p then
+                op_copy(p, s, 1, params.outer_p, params.erase - 1)
             end
-            if v == nil then
-                return sexp_get_attr(x._s, k)
-            else
-                sexp_set_attr(x._s, k, v)
+            op_copy(p, s, params.erase,
+                params.outer_p + params.erase_last,
+                params.outer_n - params.erase_last)
+            if nd then
+                local ndel = params.erase_last - params.erase + 1
+                if nd ~= ns then
+                    for i = 0, params.erase - 2 do R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i)) end
+                end
+                for i = params.erase - 1, params.outer_n - ndel - 1 do
+                    R.SET_STRING_ELT(nd, i, R.STRING_ELT(ns, i + ndel))
+                end
             end
-        end,
-
-        __pairs = function(x)
-            return function(t, k)
-                k = k + 1
-                if k > #t then return nil end
-                return k, t[k]
-            end, x, 0
+            return params.outer_n - (params.erase_last - params.erase + 1)
+        elseif params.n == nil then
+            error("unsupported parameters in set")
         end
-    }
-    mt.__ipairs = mt.__pairs
-    return mt
-end
+        return params.n
+    end
 
--- Metatable for character reference type
-local mt_character_r = {
-    __new = function(ctype, init1, init2)
-        local self = ffi.new(ctype)
-        if init1 == hidden then
-            -- do nothing
-        elseif type(init1) == "number" then
-            if init2 == nil then
-                internal.AllocCharacter(self, init1)
-            elseif init2 == luajr.NA_character_ then
-                internal.AllocCharacterNA(self, init1)
-            else
-                internal.AllocCharacterTo(self, init1, init2)
+    -- In-place set, replacing self's names from a source SEXP.
+    -- names_from: SEXP to read source names from, or nil to clear names.
+    local set_inplace = function(self, set_params, names_from)
+        local src_names = names_from and get_names(names_from) or nil
+        if src_names then
+            local dst_names = get_names(self.s)
+            if not dst_names then
+                dst_names = R.PROTECT(R.allocVector(R.STRSXP, self.c))
+                R.setAttrib(self.s, R.NamesSymbol, dst_names)
+                R.UNPROTECT(1)
             end
-        elseif vectorish(init1) then
-            internal.AllocCharacter(self, #init1)
-            for i = 1,#self do self[i] = init1[i] end
+            set_params.names_src = src_names
+            set_params.names_dst = dst_names
         else
-            error("Reference type must be initialised.")
+            R.setAttrib(self.s, R.NamesSymbol, R.NilValue)
         end
-        return self
-    end,
+        -- Always drop dim/dimnames on in-place replacement, matching the
+        -- allocate path (copyMostAttrib also drops these).
+        R.setAttrib(self.s, R.DimSymbol, R.NilValue)
+        R.setAttrib(self.s, R.DimNamesSymbol, R.NilValue)
+        self.n = set(self.p, self.s, set_params)
+    end
 
-    __gc = function(x)
-        internal.Release(x._s)
-    end,
+    -- Helper function to (re)allocate memory
+    -- self is the current vector
+    -- new_c is the new capacity
+    -- set_params gets passed on to set()
+    -- names_from: optional SEXP to read source names from (defaults to self.s)
+    local allocate = function(self, new_c, set_params, names_from)
+        -- ensure not a byref
+        if self.c == byref then
+            byref_error("reallocate")
+        end
 
-    __len = function(x)
-        return internal.SEXP_length(x._s)
-    end,
+        -- allocate new memory
+        local new_s = R.allocVector(stype, new_c) -- throws if couldn't allocate
+        R.PreserveObject(new_s)
+        local new_p = dataptr(new_s) - 1
 
-    __index = function(x, k)
-        local v = internal.GetCharacterElt(x._s, k - 1)
-        if v == nullptr then
-            return luajr.NA_character_
+        -- copy attributes (excludes names, dim, dimnames)
+        R.copyMostAttrib(self.s, new_s)
+
+        -- handle names: if source has names, create new names at capacity
+        local old_names = get_names(names_from or self.s)
+        if old_names and new_c > 0 then
+            local new_names = R.PROTECT(R.allocVector(R.STRSXP, new_c))
+            R.setAttrib(new_s, R.NamesSymbol, new_names)
+            R.UNPROTECT(1)
+            set_params.names_src = old_names
+            set_params.names_dst = new_names
+        end
+
+        -- initialize memory
+        self.n = set(new_p, new_s, set_params)
+
+        -- release current sexp
+        if self.p ~= nullptr and self.c ~= byref then
+            R.ReleaseObject(self.s)
+        end
+
+        self.p = new_p
+        self.s = new_s
+        self.c = new_c
+    end
+
+    -- Shift self to make room for insert_n elements at position i,
+    -- then copy source names into the gap.
+    -- names_from: SEXP whose names fill the gap, or nil for blank.
+    local insert_shift = function(self, i, insert_n, names_from)
+        if self.n + insert_n <= self.c then
+            local names = get_names(self.s)
+            self.n = set(self.p, self.s, { insert = i, insert_n = insert_n,
+                outer_p = self.p, outer_n = self.n,
+                names_src = names, names_dst = names })
         else
-            return ffi.string(v)
+            allocate(self, self.n + insert_n, { insert = i, insert_n = insert_n,
+                outer_p = self.p, outer_n = self.n })
         end
-    end,
-
-    __newindex = function(x, k, v)
-        if v == luajr.NA_character_ then
-            internal.SetCharacterElt(x._s, k - 1, nullptr)
-        else
-            internal.SetCharacterElt(x._s, k - 1, v)
+        local dst_names = get_names(self.s)
+        local src_names = names_from and get_names(names_from) or nil
+        if dst_names and src_names then
+            for j = 0, insert_n - 1 do
+                R.SET_STRING_ELT(dst_names, i - 1 + j, R.STRING_ELT(src_names, j))
+            end
         end
-    end,
-
-    __call = function(x, k, v)
-        if type(k) ~= "string" then
-            error("Can only set string-keyed attributes.")
-        end
-        if v == nil then
-            return sexp_get_attr(x._s, k)
-        else
-            sexp_set_attr(x._s, k, v)
-        end
-    end,
-
-    __pairs = function(x)
-        return function(t, k)
-            k = k + 1
-            if k > #t then return nil end
-            return k, t[k]
-        end, x, 0
     end
-}
-mt_character_r.__ipairs = mt_character_r.__pairs
-
--- Reference type definitions
-luajr.logical_r   = ffi.metatype("logical_rt", mt_basic_r(internal.AllocLogical))
-luajr.integer_r   = ffi.metatype("integer_rt", mt_basic_r(internal.AllocInteger))
-luajr.numeric_r   = ffi.metatype("numeric_rt", mt_basic_r(internal.AllocNumeric))
-luajr.character_r = ffi.metatype("character_rt", mt_character_r)
-
--- Reference type checkers
-luajr.is_logical_r   = function(obj) return ffi.istype(luajr.logical_r, obj) end
-luajr.is_integer_r   = function(obj) return ffi.istype(luajr.integer_r, obj) end
-luajr.is_numeric_r   = function(obj) return ffi.istype(luajr.numeric_r, obj) end
-luajr.is_character_r = function(obj) return ffi.istype(luajr.character_r, obj) end
-
-
----------------------
--- 4. VECTOR TYPES --
----------------------
-
--- Helper function to reallocate memory
--- p is the pointer to the memory;
--- vtype is the variable-length array type (e.g. 'double[?]')
--- ptype is the corresponding pointer type (e.g. 'double*')
--- nelem is the new number of elements
--- init1, init2 control initialization of the new memory
-local vec_realloc = function(p, vtype, ptype, nelem, init1, init2)
-    -- check on nelem
-    if nelem < 1 then
-        if p ~= nullptr then ffi.C.free(p + 1) end
-        return nullptr
-    end
-
-    -- allocate new memory (with array indexing starting at 1)
-    local new_p = ffi.cast(ptype, malloc(sizeof(vtype, nelem)))
-    if new_p == nullptr then
-        error("Could not allocate memory in vec_realloc.")
-    else
-        new_p = new_p - 1
-    end
-
-    -- initialize according to init1 and init2
-    if init1 == nil and init2 == nil then
-        -- do nothing
-    elseif (type(init1) == "number" or type(init1) == "boolean") and init2 == nil then
-        -- number, nil: fill with number
-        for i = 1,nelem do new_p[i] = init1 end
-    elseif vectorish(init1) then
-        -- table, any: fill with table, only the first init2 entries if provided
-        for i = 1,init2 or #init1 do new_p[i] = init1[i] end
-    elseif ffi.istype(ptype, init1) then
-        -- ptr to data of same type, any: fill, only the first init2 entries if provided
-        if init1 ~= nullptr then
-            ffi.copy(new_p + 1, init1 + 1, sizeof(vtype, init2 or nelem))
-        end
-    elseif type(init1) == "number" and type(init2) == "number" then
-        -- gapped copy: copy old p to new p, skipping over init2 elements at position init1
-        if p ~= nullptr then
-            ffi.copy(new_p + 1, p + 1, sizeof(vtype, init1 - 1))
-            ffi.copy(new_p + init1 + init2, p + init1, sizeof(vtype, nelem - init1 - init2 + 1))
-        end
-    else
-        error(string.format("Could not interpret initializers to vec_realloc: [%s] %s, [%s] %s",
-            type(init1), tostring(init1), type(init2), tostring(init2)))
-    end
-
-    -- free current contents of p (with array indexing starting at 1)
-    if p ~= nullptr then
-        ffi.C.free(p + 1)
-    end
-
-    return new_p
-end
-
--- Metatable for logical/integer/numeric vector
-local mt_basic_v = function(ct)
-    local vtype = ffi.typeof(ct .. "[?]")
-    local ptype = ffi.typeof(ct .. "*")
 
     -- Methods
-    -- TODO consistent way of handling bad arguments ... ?
     local methods = {
         assign = function(self, a, b)
-            if a == nil and b == nil then
-                self.n = 0
-            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean" or b == nil) then
-                -- a copies of b
-                if a <= self.c then
-                    if b ~= nil then
-                        for i = 1,a do self.p[i] = b end
-                    end
-                    self.n = a
+            if ffi.istype(R.sexp, a) and b == nil then
+                -- copy of SEXP
+                if R.TYPEOF(a) ~= stype then
+                    error("cannot assign " .. ffi.string(R.type2char(stype)) ..
+                        " vector from " .. R.type_string(a), 2)
+                end
+                local alen = R.length(a)
+                if self.c == byref and alen ~= self.n then byref_error("assign") end
+                if self.c == byref or alen <= self.c then
+                    set_inplace(self, { p = dataptr(a) - 1, n = alen }, a)
                 else
-                    self.p = vec_realloc(self.p, vtype, ptype, a, b)
-                    self.n = a
-                    self.c = a
+                    allocate(self, alen, { p = dataptr(a) - 1, n = alen }, a)
+                end
+            elseif a == nil and b == nil then
+                -- empty vector
+                if self.c == byref then
+                    if self.n ~= 0 then byref_error("assign") end
+                else
+                    self:clear()
+                end
+            elseif type(a) == "number" and (is_val(b) or b == nil) then
+                -- a copies of b
+                if a < 0 then error("assign: count must be non-negative", 2) end
+                if self.c == byref and a ~= self.n then byref_error("assign") end
+                if self.c == byref or a <= self.c then
+                    set_inplace(self, { fill = b, n = a }, nil)
+                else
+                    allocate(self, a, { fill = b, n = a }, R.NilValue)
                 end
             elseif ffi.istype(self, a) and b == nil then
-                -- from vector
-                if a.n <= self.c then
-                    ffi.copy(self.p + 1, a.p + 1, sizeof(vtype, a.n))
-                    self.n = a.n
+                -- from vector to copy
+                if self.c == byref and a.n ~= self.n then byref_error("assign") end
+                if self.c == byref or a.n <= self.c then
+                    set_inplace(self, { p = a.p, n = a.n }, a.s)
                 else
-                    self.p = vec_realloc(self.p, vtype, ptype, a.n, a.p)
-                    self.n = a.n
-                    self.c = a.n
+                    allocate(self, a.n, { p = a.p, n = a.n }, a.s)
+                end
+            elseif stype == R.VECSXP and type(a) == "table" and b == nil then
+                -- luajr.list with a table input: build VECSXP via to_sexp
+                if self.c == byref then
+                    -- byref: copy into existing storage
+                    local s = R.PROTECT(to_sexp(a))
+                    local n = R.length(s)
+                    if n ~= self.n then
+                        R.UNPROTECT(1)
+                        byref_error("assign")
+                    end
+                    set_inplace(self, { p = dataptr(s) - 1, n = n }, s)
+                    R.UNPROTECT(1)
+                else
+                    -- anything else: adopt the to_sexp VECSXP
+                    local s = to_sexp(a)
+                    R.PreserveObject(s)
+                    if self.p ~= nullptr then R.ReleaseObject(self.s) end
+                    self.s = s
+                    self.p = dataptr(s) - 1
+                    self.n = R.length(s)
+                    self.c = self.n
                 end
             elseif vectorish(a) and b == nil then
                 -- from vector-ish object
-                if #a <= self.c then
-                    for i = 1,#a do self.p[i] = a[i] end
-                    self.n = #a
+                if self.c == byref and #a ~= self.n then byref_error("assign") end
+                local src_sexp = (type(a) ~= "table") and a.s or R.NilValue
+                if self.c == byref or #a <= self.c then
+                    set_inplace(self, { copy = a, n = #a }, src_sexp)
                 else
-                    self.p = vec_realloc(self.p, vtype, ptype, #a, a)
-                    self.n = #a
-                    self.c = #a
+                    allocate(self, #a, { copy = a, n = #a }, src_sexp)
                 end
             else
-                error("cannot use vector:assign with argument types " ..
+                error("cannot assign to vector with argument types " ..
                     type(a) .. ", " .. type(b) .. ".", 2)
-            end
-        end,
-
-        print = function(self)
-            for k,v in pairs(self) do
-                print(k,v)
             end
         end,
 
         concat = function(self, sep)
             sep = sep or ","
-            local str = ""
-            for i=1,#self do
-                if sep ~= nil and i ~= #self then
-                    str = str .. tostring(self[i]) .. sep
-                else
-                    str = str .. tostring(self[i])
-                end
-            end
-            return str
+            local parts = {}
+            for i = 1, #self do parts[i] = tostring(self[i]) end
+            return table.concat(parts, sep)
         end,
 
         debug_str = function(self)
-            return self.n .. "|" .. self.c .. "|" .. self:concat(",")
+            local cap = (self.c == byref) and "byref"
+                or (self.c == alias) and "alias"
+                or tostring(self.c)
+            return self.n .. "|" .. cap .. "|" .. self:concat(",")
         end,
 
         -- Capacity
         reserve = function(self, n)
-            if n == nil then error("must specify new reserved size", 2) end
+            if type(n) ~= "number" or n < 0 then error("reserve: n must be a non-negative number", 2) end
+            if self.c == byref then byref_error("reserve") end
             if n > self.c then
-                self.p = vec_realloc(self.p, vtype, ptype, n, self.p, self.n)
-                self.c = n
+                allocate(self, n, { p = self.p, n = self.n })
             end
         end,
 
         capacity = function(self)
-            return self.c
+            if self.c < 0 then
+                return self.n
+            else
+                return self.c
+            end
         end,
 
         shrink_to_fit = function(self)
             if self.n < self.c then
-                self.p = vec_realloc(self.p, vtype, ptype, self.n, self.p)
-                self.c = self.n
+                allocate(self, self.n, { p = self.p, n = self.n })
             end
         end,
 
         -- Modify
         clear = function(self)
-            -- Don't reallocate, just shrink to 0
-            self.n = 0
+            if self.c == byref then
+                byref_error("clear")
+            elseif self.c == alias then
+                allocate(self, 0, { n = 0 })
+            else
+                R.setAttrib(self.s, R.NamesSymbol, R.NilValue)
+                R.setAttrib(self.s, R.DimSymbol, R.NilValue)
+                R.setAttrib(self.s, R.DimNamesSymbol, R.NilValue)
+                self.n = 0
+            end
         end,
 
         resize = function(self, n, val)
-            if n <= self.n then -- fail if n==nil
-                -- If shrinking, just decrease bound
-                self.n = n
-            elseif n <= self.c then
-                -- If enlarging, but still in capacity, copy new values
+            if type(n) ~= "number" or n < 0 then error("resize: n must be a non-negative number", 2) end
+            if self.c == byref then byref_error("resize") end
+            if n < self.n then
+                self:erase(n + 1, self.n)
+            elseif n > self.n then
                 if val ~= nil then
-                    for i = self.n + 1, n do self.p[i] = val end
+                    self:insert(self.n + 1, n - self.n, val)
+                else
+                    if n > self.c then
+                        allocate(self, n, { p = self.p, n = self.n })
+                    end
+                    local names = get_names(self.s)
+                    if names then
+                        for j = self.n, n - 1 do R.SET_STRING_ELT(names, j, R.BlankString) end
+                    end
+                    self.n = n
                 end
-                self.n = n
-            else
-                -- If need to reallocate, do so and copy old contents
-                self.p = vec_realloc(self.p, vtype, ptype, n, self.p, self.n)
-                if val ~= nil then
-                    for i = self.n + 1, n do self.p[i] = val end
-                end
-                self.n = n
-                self.c = n
             end
         end,
 
-        push_back = function(self, val)
-            if self.c > self.n then
-                -- If capacty allows, just assign new value
-                self.p[self.n + 1] = val -- fail if val == nil
-                self.n = self.n + 1
-            else
-                -- Otherwise, reallocate double the space (min. 1)
-                local new_c = self.c * 2
-                if new_c < 1 then new_c = 1 end
-                self.p = vec_realloc(self.p, vtype, ptype, new_c, self.p, self.n)
-                self.p[self.n + 1] = val -- fail if val == nil
-                self.n = self.n + 1
-                self.c = new_c
+        push_back = function(self, value)
+            if value == nil then error("push_back: value must not be nil", 2) end
+            if self.c == byref then byref_error("push_back") end
+            if self.c == alias then
+                allocate(self, math.max(1, self.n * 2), { p = self.p, n = self.n })
+            elseif self.c < self.n + 1 then
+                allocate(self, math.max(1, self.c * 2), { p = self.p, n = self.n })
             end
+            self.n = self.n + 1
+            op_writev(self, self.n, value)
+            local names = get_names(self.s)
+            if names then R.SET_STRING_ELT(names, self.n - 1, R.BlankString) end
         end,
 
         pop_back = function(self)
             -- NB. C++ std::vector pop_back on empty vector undefined; here a no-op
+            if self.c == byref then byref_error("pop_back") end
             if self.n > 0 then
-                self.n = self.n - 1
+                if self.c == alias then
+                    allocate(self, self.n - 1, { erase = self.n, erase_last = self.n, outer_p = self.p, outer_n = self.n })
+                else
+                    self.n = self.n - 1
+                end
             end
         end,
 
         insert = function(self, i, a, b)
-            if i == nil then error("must specify insertion point", 2) end
-            if type(a) == "number" and type(b) == "number" then
-                -- a copies of b
-                if self.n + a <= self.c then
-                    for j = self.n,i,-1 do self.p[j + a] = self.p[j] end
-                    for j = i,i+a-1 do self.p[j] = b end
-                    self.n = self.n + a
-                else
-                    self.p = vec_realloc(self.p, vtype, ptype, self.n + a, i, a)
-                    for j = i,i+a-1 do self.p[j] = b end
-                    self.c = self.n + a
-                    self.n = self.n + a
+            if self.c == byref then byref_error("insert") end
+            if type(i) ~= "number" or i < 1 or i > self.n + 1 then
+                error("insert: position must be in range [1, #vec+1]", 2)
+            end
+            if a == nil and b == nil then
+                -- nothing to insert: no-op
+                return
+            elseif ffi.istype(R.sexp, a) and b == nil then
+                -- from a bare SEXP of matching type
+                if R.TYPEOF(a) ~= stype then
+                    error("cannot insert " .. ffi.string(R.type2char(stype)) ..
+                        " vector from " .. R.type_string(a), 2)
                 end
+                local alen = R.length(a)
+                insert_shift(self, i, alen, a)
+                op_copy(self.p, self.s, i, dataptr(a) - 1, alen)
+            elseif type(a) == "number" and (is_val(b) or b == nil) then
+                -- a copies of b
+                if a < 0 then error("insert: count must be non-negative", 2) end
+                insert_shift(self, i, a, nil)
+                for j = i, i+a-1 do op_writev(self, j, b) end
             elseif ffi.istype(self, a) and b == nil then
                 -- from vector
-                if self.n + #a <= self.c then
-                    for j = self.n,i,-1 do self.p[j + #a] = self.p[j] end
-                    ffi.copy(self.p + i, a.p + 1, sizeof(vtype, #a))
-                    self.n = self.n + #a
-                else
-                    self.p = vec_realloc(self.p, vtype, ptype, self.n + #a, i, #a)
-                    ffi.copy(self.p + i, a.p + 1, sizeof(vtype, #a))
-                    self.c = self.n + #a
-                    self.n = self.n + #a
-                end
+                insert_shift(self, i, #a, a.s)
+                op_copy(self.p, self.s, i, a.p, #a)
             elseif vectorish(a) and b == nil then
                 -- from vector-ish object
-                if self.n + #a <= self.c then
-                    for j = self.n,i,-1 do self.p[j + #a] = self.p[j] end
-                    for j = 1,#a do self.p[j + i - 1] = a[j] end
-                    self.n = self.n + #a
-                else
-                    self.p = vec_realloc(self.p, vtype, ptype, self.n + #a, i, #a)
-                    for j = 1,#a do self.p[j + i - 1] = a[j] end
-                    self.c = self.n + #a
-                    self.n = self.n + #a
-                end
+                insert_shift(self, i, #a, (type(a) ~= "table") and a.s or R.NilValue)
+                for j = 1, #a do op_writev(self, i + j - 1, a[j]) end
             else
                 error("cannot use vector:insert with argument types " ..
                     type(a) .. ", " .. type(b) .. ".", 2)
@@ -601,10 +667,107 @@ local mt_basic_v = function(ct)
         end,
 
         erase = function(self, first, last)
+            if self.c == byref then byref_error("erase") end
             if last == nil then last = first end
+            if type(first) ~= "number" or first < 1 or last > self.n or first > last then
+                error("erase: range must satisfy 1 <= first <= last <= #vec", 2)
+            end
             local ndel = last - first + 1
-            for i = first, self.n - ndel do self.p[i] = self.p[i + ndel] end
-            self.n = self.n - ndel
+            if self.c == alias then
+                allocate(self, self.n - ndel, { erase = first, erase_last = last, outer_p = self.p, outer_n = self.n })
+            else
+                local names = get_names(self.s)
+                self.n = set(self.p, self.s, { erase = first, erase_last = last, outer_p = self.p, outer_n = self.n,
+                    names_src = names, names_dst = names })
+            end
+        end,
+
+        detach = function(self)
+            allocate(self, self.n, { p = self.p, n = self.n })
+        end,
+
+        -- Attributes, etc
+        is_na = function(self, i)
+            if stype == R.VECSXP then
+                error("is_na is not defined for luajr.list", 2)
+            elseif stype == R.REALSXP then
+                local v = self.p[i]
+                return v ~= v
+            else
+                return self.p[i] == na_val
+            end
+        end,
+
+        get_attr = function(self, k)
+            if type(k) ~= "string" then
+                error("can only get string-keyed attributes", 2)
+            end
+            return from_sexp(R.getAttrib(self.s, R.install(k)))
+        end,
+
+        set_attr = function(self, k, v)
+            if type(k) ~= "string" then
+                error("can only set string-keyed attributes", 2)
+            end
+            if self.c == alias then self:detach() end
+            if k == "names" and luajr.is_character(v) then
+                local cap = (self.c >= 0) and self.c or self.n
+                if v.n == cap then
+                    R.setAttrib(self.s, R.NamesSymbol, v.s)
+                else
+                    local ns = R.PROTECT(R.allocVector(R.STRSXP, cap))
+                    for i = 0, math.min(self.n, v.n) - 1 do
+                        R.SET_STRING_ELT(ns, i, R.STRING_ELT(v.s, i))
+                    end
+                    R.setAttrib(self.s, R.NamesSymbol, ns)
+                    R.UNPROTECT(1)
+                end
+            else
+                R.setAttrib(self.s, R.install(k), to_sexp(v))
+            end
+        end,
+
+        unname = function(self)
+            if self.c == alias then self:detach() end
+            R.setAttrib(self.s, R.NamesSymbol, R.NilValue)
+        end,
+
+        -- Named element access
+        find = function(self, name)
+            local names = R.getAttrib(self.s, R.NamesSymbol)
+            if R.TYPEOF(names) ~= R.STRSXP then return nil end
+            local nn = math.min(R.length(names), self.n)
+            local p = ffi.cast(sexpp, R.STRING_PTR_RO(names))
+            for i = 0, nn - 1 do
+                if from_charsxp(p[i]) == name then
+                    return i + 1
+                end
+            end
+            return nil
+        end,
+
+        get = function(self, name)
+            local i = self:find(name)
+            if i == nil then return nil end
+            return op_readv(self, i)
+        end,
+
+        set = function(self, name, v)
+            local i = self:find(name)
+            if i ~= nil then
+                if self.c == alias then self:detach() end
+                op_writev(self, i, v)
+            else
+                if self.c == byref then byref_error("set") end
+                self:push_back(v)
+                local names = R.getAttrib(self.s, R.NamesSymbol)
+                if R.TYPEOF(names) ~= R.STRSXP then -- if no names / invalid names
+                    names = R.PROTECT(R.allocVector(R.STRSXP, self.c))
+                    R.setAttrib(self.s, R.NamesSymbol, names)
+                    R.UNPROTECT(1)
+                end
+                R.SET_STRING_ELT(names, self.n - 1, to_charsxp(name))
+            end
         end
     }
 
@@ -612,35 +775,27 @@ local mt_basic_v = function(ct)
     local mt = {
         __new = function(ctype, a, b)
             local self = ffi.new(ctype)
-            if a == nil and b == nil then
-                self.p = nullptr
-                self.n = 0
-                self.c = 0
-            elseif type(a) == "number" and (type(b) == "number" or type(b) == "boolean" or b == nil) then
-                -- a copies of b
-                self.p = vec_realloc(nullptr, vtype, ptype, a, b)
-                self.n = a
-                self.c = a
-            elseif ffi.istype(ctype, a) and b == nil then
-                -- from vector to copy
-                self.p = vec_realloc(nullptr, vtype, ptype, a.n, a.p)
-                self.n = a.n
-                self.c = a.n
-            elseif vectorish(a) and b == nil then
-                -- from vector-ish object
-                self.p = vec_realloc(nullptr, vtype, ptype, #a, a)
-                self.n = #a
-                self.c = #a
+            if ffi.istype(R.sexp, a) and (b == byref or b == alias) then
+                -- argument-passing construction of reference or alias
+                self.p = dataptr(a) - 1
+                self.s = a
+                self.c = b
+                self.n = R.length(a)
+                -- preserve object if alias
+                if self.c == alias then R.PreserveObject(self.s) end
             else
-                error("cannot construct vector with argument types " ..
-                    type(a) .. ", " .. type(b) .. ".", 2)
+                self.p = nullptr
+                self.s = R.NilValue
+                self.n = 0
+                self.c = alias
+                self:assign(a, b)
             end
             return self
         end,
 
         __gc = function(self)
-            if self.p ~= nullptr then
-                ffi.C.free(self.p + 1)
+            if self.p ~= nullptr and self.c ~= byref then
+                R.ReleaseObject(self.s)
             end
         end,
 
@@ -650,17 +805,70 @@ local mt_basic_v = function(ct)
 
         __index = function(self, k)
             if type(k) == "number" then
-                return self.p[k]
+                return op_readv(self, k)
             else
                 return methods[k]
             end
         end,
 
         __newindex = function(self, k, v)
-            self.p[k] = v
+            if self.c == alias then self:detach() end
+            op_writev(self, k, v)
         end,
 
-        __pairs = function(self)
+        __call = function(self, j)
+            -- Resolve j to a 1-based index (or nil if not found / out of bounds)
+            local i
+            if type(j) == "number" then
+                if j >= 1 and j <= #self then i = j end
+            elseif type(j) == "string" then
+                i = self:find(j)
+            else
+                error("cannot subset vector with type " .. type(j), 2)
+            end
+            -- Build length-1 result
+            local v = ffi.typeof(self)(1)
+            v[1] = i and self[i] or na_val
+            -- Copy or set name
+            local names = get_names(self.s)
+            if names then
+                local v_names = R.PROTECT(R.allocVector(R.STRSXP, 1))
+                R.SET_STRING_ELT(v_names, 0, i and R.STRING_ELT(names, i - 1) or R.NA_STRING)
+                R.setAttrib(v.s, R.NamesSymbol, v_names)
+                R.UNPROTECT(1)
+            end
+            return v
+        end,
+
+        __tostring = function(self)
+            local limit = 100
+            local n = math.min(self.n, limit)
+            local ns = get_names(self.s)
+            local parts = {}
+            local fmt
+            if stype == R.VECSXP then
+                local tnames = { [R.LGLSXP] = "lgl", [R.INTSXP] = "int",
+                    [R.REALSXP] = "num", [R.STRSXP] = "chr", [R.VECSXP] = "list" }
+                fmt = function(i)
+                    local elem = self.p[i]
+                    local tn = tnames[R.TYPEOF(elem)]
+                    if tn then return tn .. "[" .. R.length(elem) .. "]"
+                    else return ffi.string(R.type2char(R.TYPEOF(elem))) end
+                end
+            else
+                fmt = function(i) return tostring(self[i]) end
+            end
+            if ns then
+                local p = ffi.cast(sexpp, R.STRING_PTR_RO(ns))
+                for i = 1, n do parts[i] = from_charsxp(p[i - 1]) .. " = " .. fmt(i) end
+            else
+                for i = 1, n do parts[i] = fmt(i) end
+            end
+            if self.n > limit then parts[n + 1] = "... (" .. self.n .. " elements)" end
+            return table.concat(parts, ", ")
+        end,
+
+        __ipairs = function(self)
             return function(t, k)
                 k = k + 1
                 if k > t.n then
@@ -670,483 +878,274 @@ local mt_basic_v = function(ct)
             end, self, 0
         end
     }
-    mt.__ipairs = mt.__pairs
+    mt.__pairs = mt.__ipairs
 
     return mt
 end
 
--- For keeping strings in luajr.character
-local tostring2 = function(v)
-    if v == luajr.NA_character_ then
-        return luajr.NA_character_
-    elseif v == nil then
-        return ""
-    else
-        return tostring(v)
-    end
-end
-
--- Metatable for character vector
-local mt_character_v
-local new_character_v
-mt_character_v = {
-    __index = function(self, k)
-        if type(k) == "number" then
-            return rawget(self, 0)[k]
-        else
-            return mt_character_v[k]
-        end
-    end,
-
-    __newindex = function(self, k, v)
-        rawget(self, 0)[k] = tostring2(v)
-    end,
-
-    __len = function(self)
-        return #(rawget(self, 0))
-    end,
-
-    __pairs = function(self)
-        return pairs(rawget(self, 0))
-    end,
-
-    __ipairs = function(self)
-        return ipairs(rawget(self, 0))
-    end,
-
-    assign = function(self, a, b)
-        nt = new_character_v(a, b)
-        self:resize(#nt)
-        for i = 1,#self do rawget(self, 0)[i] = rawget(nt, 0)[i] end
-    end,
-
-    print = function(self)
-        for k,v in pairs(self) do
-            print(k,v)
-        end
-    end,
-
-    concat = function(self, sep)
-        sep = sep or ","
-        local str = ""
-        for i = 1,#self do
-            v = rawget(self, 0)[i]
-            if v == luajr.NA_character_ then str = str .. "NA" else str = str .. v end
-            if i < #self then str = str .. sep end
-        end
-        return str
-    end,
-
-    debug_str = function(self)
-        return #self .. "|" .. #self .. "|" .. self:concat(",")
-    end,
-
-    -- Capacity
-    reserve = function(self, n) end,
-    capacity = function(self) return #self end,
-    shrink_to_fit = function(self) end,
-
-    -- Modify
-    clear = function(self)
-        table.clear(rawget(self, 0))
-    end,
-
-    resize = function(self, n, val)
-        if n < #self then
-            for i = 1, #self - n do table.remove(rawget(self, 0)) end
-        else
-            for i = 1, n - #self do table.insert(rawget(self, 0), tostring2(val)) end
-        end
-    end,
-
-    push_back = function(self, val)
-        table.insert(rawget(self, 0), tostring2(val))
-    end,
-
-    pop_back = function(self)
-        table.remove(rawget(self, 0))
-    end,
-
-    insert = function(self, i, a, b)
-        nt = new_character_v(a, b)
-        for j = #self,i,-1 do rawget(self, 0)[j + #nt] = rawget(self, 0)[j] end
-        for j = 1,#nt do rawget(self, 0)[j + i - 1] = nt[j] end
-    end,
-
-    erase = function(self, first, last)
-        if last == nil then last = first end
-        local ndel = last - first + 1
-        for i = first, #self - ndel do rawget(self, 0)[i] = rawget(self, 0)[i + ndel] end
-        for i = 1, ndel do table.remove(rawget(self, 0)) end
-    end
-}
-
--- Constructor for character_v
-new_character_v = function(a, b)
-    local t
-    if a == nil and b == nil then
-        t = {}
-    elseif type(a) == "number" then
-        -- a copies of b
-        t = table.new(a, 0)
-        for i=1,a do t[i] = tostring2(b) end
-    elseif getmetatable(a) == mt_character_v and b == nil then
-        -- from vector to copy
-        t = table.new(#a, 0)
-        for i=1,#a do t[i] = a[i] end
-    elseif vectorish(a) and b == nil then
-        -- from vector-ish object
-        t = table.new(#a, 0)
-        for i=1,#a do t[i] = tostring2(a[i]) end
-    else
-        error("cannot construct character vector with argument types " ..
-            type(a) .. ", " .. type(b) .. ".", 2)
-    end
-    local vec = { [0] = t }
-    setmetatable(vec, mt_character_v)
-    return vec
-end
-
 -- Vector type definitions
-luajr.logical = ffi.metatype("logical_vt", mt_basic_v("int"))
-luajr.integer = ffi.metatype("integer_vt", mt_basic_v("int"))
-luajr.numeric = ffi.metatype("numeric_vt", mt_basic_v("double"))
-luajr.character = new_character_v
+luajr.logical   = ffi.metatype("logical_t",   mt_vector_template("int",    R.LGLSXP,  R.NA_LOGICAL, R.LOGICAL))
+luajr.integer   = ffi.metatype("integer_t",   mt_vector_template("int",    R.INTSXP,  R.NA_INTEGER, R.INTEGER))
+luajr.numeric   = ffi.metatype("numeric_t",   mt_vector_template("double", R.REALSXP, R.NA_REAL,    R.REAL))
+luajr.character = ffi.metatype("character_t", mt_vector_template("SEXP",   R.STRSXP,  R.NA_STRING,  function(s) return ffi.cast(sexpp, R.STRING_PTR_RO(s)) end))
+luajr.list      = ffi.metatype("list_t",      mt_vector_template("SEXP",   R.VECSXP,  R.NilValue,   function(s) return ffi.cast(sexpp, R.DATAPTR_RO(s)) end))
 
 -- Vector type checkers
 luajr.is_logical   = function(obj) return ffi.istype(luajr.logical, obj) end
 luajr.is_integer   = function(obj) return ffi.istype(luajr.integer, obj) end
 luajr.is_numeric   = function(obj) return ffi.istype(luajr.numeric, obj) end
-luajr.is_character = function(obj) return getmetatable(obj) == mt_character_v end
+luajr.is_character = function(obj) return ffi.istype(luajr.character, obj) end
+luajr.is_list      = function(obj) return ffi.istype(luajr.list, obj) end
 
-
-------------------
--- 5. LIST TYPE --
-------------------
-
--- Metatable for list
-local mt_list = {
-    __index = function(self, k)
-        if type(k) == "number" then
-            return self[0][k]
-        else
-            return self[0][self[0].names[k]]
-        end
-    end,
-
-    __newindex = function(self, k, v)
-        if type(k) == "number" then
-            k = math.floor(k)
-            if k < 1 or k > #self + 1 then
-                error("Assignment out of list bounds.")
-            end
-            if v == nil then -- erasure
-                table.remove(self[0], k)
-                for n, j in pairs(self[0].names) do
-                    if j == k then self[0].names[n] = nil end
-                    if j > k then self[0].names[n] = j - 1 end
-                end
-            else
-                self[0][k] = v
-            end
-        elseif type(k) == "string" then
-            local i = self[0].names[k]
-            if i == nil then
-                self[0][#self + 1] = v
-                self[0].names[k] = #self
-            else
-                if v == nil then -- erasure
-                    table.remove(self[0], i)
-                    for n, j in pairs(self[0].names) do
-                        if j == i then self[0].names[n] = nil end
-                        if j > i then self[0].names[n] = j - 1 end
-                    end
-                else
-                    self[0][i] = v
-                end
-            end
-        else
-            error("Invalid key type " .. type(k) .. " in mt_list.__newindex().")
-        end
-    end,
-
-    __len = function(self)
-        return #self[0]
-    end,
-
-    __call = function(self, k, v)
-        if type(k) ~= "string" then
-            error("Can only set string-keyed attributes.")
-        end
-        if v == nil then
-            return self[0][k]
-        else
-            self[0][k] = v
-        end
-    end,
-
-    __pairs = function(self)
-        -- inverse key lookup
-        local inv = {}
-        for k,v in pairs(self[0].names) do inv[v] = k end
-
-        return function(t, k)
-            -- get j as next numeric key
-            local j = 0
-            if type(k) == "number" then
-                j = k + 1
-            else
-                j = t[0].names[k] + 1
-            end
-
-            -- check for past the end
-            if j > #t then
-                return nil
-            end
-
-            -- get k as either string if avail or integer
-            if inv[j] ~= nil then
-                k = inv[j]
-            else
-                k = j
-            end
-
-            return k, t[0][j]
-        end, self, 0
-    end,
-
-    __ipairs = function(self)
-        return ipairs(self[0])
-    end
-}
-
--- Constructor for list
-local new_list = function()
-    local list = { [0] = { names = {} } }
-    setmetatable(list, mt_list)
-    return list
-end
-
--- List definition
-luajr.list = new_list
-
--- List checker
-luajr.is_list = function(obj) return getmetatable(obj) == mt_list end
+-- Typed NA constructors: return length-1 vectors containing NA
+luajr.NA_logical   = function() return luajr.logical(1, R.NA_LOGICAL) end
+luajr.NA_integer   = function() return luajr.integer(1, R.NA_INTEGER) end
+luajr.NA_real      = function() return luajr.numeric(1, R.NA_REAL) end
+luajr.NA_character = function() return luajr.character(1, R.NA_STRING) end
 
 
 --------------------
--- 6. PASS TO LUA --
+-- 4. EXTRA TYPES --
 --------------------
-
--- Identifies reference types from type codes
-local ref_type = {
-    [internal.LOGICAL_R]   = luajr.logical_r,
-    [internal.INTEGER_R]   = luajr.integer_r,
-    [internal.NUMERIC_R]   = luajr.numeric_r,
-    [internal.CHARACTER_R] = luajr.character_r
-}
-
--- Helpers to set reference objects to existing R objects when passing in
-local ref_set = {
-    [internal.LOGICAL_R]   = internal.SetLogicalRef,
-    [internal.INTEGER_R]   = internal.SetIntegerRef,
-    [internal.NUMERIC_R]   = internal.SetNumericRef,
-    [internal.CHARACTER_R] = internal.SetCharacterRef
-}
-
--- Identifies vector types from type codes
-local vec_type = {
-    [internal.LOGICAL_V]   = luajr.logical,
-    [internal.INTEGER_V]   = luajr.integer,
-    [internal.NUMERIC_V]   = luajr.numeric
-    -- CHARACTER_V handled separately
-}
-
--- Helpers to copy existing R objects to vector objects when passing in
-local vec_set = {
-    [internal.LOGICAL_V]   = internal.SetLogicalVec,
-    [internal.INTEGER_V]   = internal.SetIntegerVec,
-    [internal.NUMERIC_V]   = internal.SetNumericVec
-    -- CHARACTER_V handled separately
-}
-
--- Construct a reference type. Called with:
---   ud = SEXP to be referenced
---   typecode = e.g. internal.LOGICAL_R, etc
-luajr.construct_ref = function(ud, typecode)
-    local x = ref_type[typecode](hidden)
-    ref_set[typecode](x, ud)
-    return x
-end
-
--- Construct a vector type. Called with:
---   ud = SEXP to be copied
---   typecode = e.g. internal.LOGICAL_V, etc
-luajr.construct_vec = function(ud, typecode)
-    if typecode == internal.CHARACTER_V then
-        local x = luajr.character(internal.SEXP_length(ud), "")
-        for i = 1,#x do
-            local c = internal.GetCharacterElt(ud, i - 1)
-            if c == nullptr then
-                x[i] = luajr.NA_character_
-            else
-                x[i] = ffi.string(c)
-            end
-        end
-        return x
-    else
-        local x = vec_type[typecode](internal.SEXP_length(ud), 0)
-        vec_set[typecode](x, ud)
-        return x
-    end
-end
-
--- Construct a list. Called with:
---   elements = table (integer keys, 1 to n) with elements to hold
---   names = table, e.g. { foo = 1, bar = 3 } if 1st and 3rd elements are named
-luajr.construct_list = function(elements, names)
-    local list = { [0] = elements }
-    list[0].names = names
-    setmetatable(list, mt_list)
-    return list
-end
-
--- Construct NULL.
-luajr.construct_null = function()
-    return luajr.NULL
-end
-
-
---------------------
--- 7. RETURN TO R --
---------------------
-
--- Helps return luajr objects to R
--- When passed a luajr object, returns two values:
---    1, an integer type code from the internal api
---    2, a pointer to the object's internal SEXP, if the object is a reference;
---       or the number of elements in that object, if the object is a vector/list.
--- If the object is not a luajr type (e.g. a plain Lua type) returns nil, nil.
-function luajr.return_info(obj)
-    if     luajr.is_logical_r(obj)      then return internal.LOGICAL_R, ffi.cast("void*", obj._s)
-    elseif luajr.is_integer_r(obj)      then return internal.INTEGER_R, ffi.cast("void*", obj._s)
-    elseif luajr.is_numeric_r(obj)      then return internal.NUMERIC_R, ffi.cast("void*", obj._s)
-    elseif luajr.is_character_r(obj)    then return internal.CHARACTER_R, ffi.cast("void*", obj._s)
-
-    elseif luajr.is_logical(obj)        then return internal.LOGICAL_V, #obj
-    elseif luajr.is_integer(obj)        then return internal.INTEGER_V, #obj
-    elseif luajr.is_numeric(obj)        then return internal.NUMERIC_V, #obj
-    elseif luajr.is_character(obj)      then return internal.CHARACTER_V, #obj
-    elseif luajr.is_list(obj)           then return internal.LIST_T, #obj
-    elseif obj == nullptr               then return internal.NULL_T, 0
-    elseif ffi.istype(luajr.NULL, obj)  then return internal.NULL_T, 0
-    end
-
-    return nil, nil
-end
-
--- Copies a luajr object to allocated memory so that it can be taken in by R.
---   obj is the luajr object;
---   ptr is a SEXP* (_pointer_ to SEXP) if obj is a reference type;
---     or the start of some contiguous memory if obj is a basic vector type;
---     or a SEXP if obj is a character vector.
-function luajr.return_copy(obj, ptr)
-    if luajr.is_logical_r(obj) or luajr.is_integer_r(obj) or
-       luajr.is_numeric_r(obj) or luajr.is_character_r(obj) then
-        internal.SetPtr(ptr, obj._s)
-    elseif luajr.is_logical(obj) then
-        ffi.copy(ffi.cast("int*", ptr), obj.p + 1, sizeof("int[?]", obj.n))
-    elseif luajr.is_integer(obj) then
-        ffi.copy(ffi.cast("int*", ptr), obj.p + 1, sizeof("int[?]", obj.n))
-    elseif luajr.is_numeric(obj) then
-        ffi.copy(ffi.cast("double*", ptr), obj.p + 1, sizeof("double[?]", obj.n))
-    elseif luajr.is_character(obj) then
-        for k,v in ipairs(obj) do
-            if v == luajr.NA_character_ then
-                internal.SetCharacterElt(ffi.cast("SEXP", ptr), k - 1, nullptr)
-            else
-                internal.SetCharacterElt(ffi.cast("SEXP", ptr), k - 1, v)
-            end
-        end
-    else
-        error("luajr.return_copy should not be called with an object of this type.")
-    end
-end
-
-
---------------------
--- 8. EXTRA TYPES --
---------------------
-
--- Attribute set/getters
-sexp_get_attr = function(s, k)
-    local typecode = internal.GetAttrType(s, k)
-    if typecode == internal.NULL_T then return nil end
-    local x = ref_type[typecode](hidden)
-    ref_set[typecode](x, internal.GetAttrSEXP(s, k))
-    return x
-end
-
-sexp_set_attr = function(s, k, v)
-    if k == "/matrix/colnames" and luajr.is_character_r(v) then
-        internal.SetMatrixColnamesCharacterRef(s, v)
-    elseif luajr.is_logical_r(v) then
-        internal.SetAttrLogicalRef(s, k, v)
-    elseif luajr.is_integer_r(v) then
-        internal.SetAttrIntegerRef(s, k, v)
-    elseif luajr.is_numeric_r(v) then
-        internal.SetAttrNumericRef(s, k, v)
-    elseif luajr.is_character_r(v) then
-        internal.SetAttrCharacterRef(s, k, v)
-    else
-        error("No attribute setter for type " .. type(v) .. ".")
-    end
-end
 
 -- Does obj have indexing and length capabilities?
 vectorish = function(obj)
-    return type(obj) == "table" or luajr.is_numeric_r(obj) or luajr.is_numeric(obj) or
-        luajr.is_integer_r(obj) or luajr.is_integer(obj) or luajr.is_character_r(obj) or
-            luajr.is_logical_r(obj) or luajr.is_logical(obj)
+    return type(obj) == "table" or luajr.is_logical(obj) or luajr.is_integer(obj) or
+        luajr.is_numeric(obj) or luajr.is_character(obj) or luajr.is_list(obj)
 end
 
 -- dataframe type
-function luajr.dataframe()
-    local df = luajr.list()
-    df[0].class = "data.frame"
-
+local df_classname = R.ScalarString(R.mkChar("data.frame"))
+R.PreserveObject(df_classname)
+function luajr.dataframe(a, b)
+    local df = luajr.list(a, b)
+    R.classgets(df.s, df_classname)
     return df
 end
 
--- matrix reference type: specify nrow and ncol
-function luajr.matrix_r(nrow, ncol)
-    local m = luajr.numeric_r(nrow * ncol, 0.0)
+-- matrix type: specify nrow, ncol, and init
+function luajr.matrix(nrow, ncol, init)
+    local m = luajr.numeric(nrow * ncol, init)
 
     -- Make dimensions
-    local dim = luajr.integer_r(2)
+    local dim = luajr.integer(2)
     dim[1] = nrow
     dim[2] = ncol
-    m("dim", dim)
+    R.dimgets(m.s, dim.s)
 
     return m
 end
 
--- datamatrix reference type: specify nrow, ncol, and column names
-function luajr.datamatrix_r(nrow, ncol, names)
-    local m = luajr.matrix_r(nrow, ncol)
+-- datamatrix type: specify nrow, ncol, column names, and init
+function luajr.datamatrix(nrow, ncol, names, init)
+    local m = luajr.matrix(nrow, ncol, init)
 
-    -- Make column names
-    if #names > ncol then error("Supplied more names than columns to luajr.datamatrix_r.") end
-    local colnames = luajr.character_r(ncol)
-    for i = 1,#names do colnames[i] = names[i] end
-    m("/matrix/colnames", colnames)
+    -- Make column names via dimnames list
+    if #names > ncol then error("Supplied more names than columns to luajr.datamatrix.", 2) end
+    local dimnames = luajr.list(2)
+    dimnames[2] = luajr.character(names)
+    R.dimnamesgets(m.s, dimnames.s)
 
     return m
 end
+
+-- environment type
+-- typedef struct { SEXP s; } environment_t;
+local methods_environment = {
+    get = function(self, k)
+        local val = R.getVarEx(R.install(k), self.s, 0, R.UnboundValue)
+        if val ~= R.UnboundValue then return from_sexp(val) else return nil end
+    end,
+
+    set = function(self, k, v)
+        R.defineVar(R.install(k), to_sexp(v), self.s)
+    end,
+
+    exists = function(self, k)
+        return self:get(k) ~= nil
+    end,
+
+    remove = function(self, k)
+        R.removeVarFromFrame(R.install(k), self.s)
+    end,
+
+    get_parent = function(self)
+        return luajr.environment(R.ParentEnv(self.s))
+    end,
+
+    set_parent = function(self, env)
+        if ffi.istype(luajr.environment, env) then
+            R.set_parent(self.s, env.s)
+        elseif ffi.istype(R.sexp, env) and R.TYPEOF(env) == R.ENVSXP then
+            R.set_parent(self.s, env)
+        else
+            error("Cannot set parent to object of type " .. type(env), 2)
+        end
+    end,
+
+    ls = function(self, all, sorted)
+        if all == nil then all = false end
+        if sorted == nil then sorted = true end
+        return luajr.character(R.lsInternal3(self.s, all and 1 or 0, sorted and 1 or 0))
+    end
+}
+
+local mt_environment = {
+    __new = function(ctype, a)
+        local self = ffi.new(ctype)
+        if a == nil then
+            self.s = R.NewEnv(R.EmptyEnv, 1, 29)
+        elseif ffi.istype(R.sexp, a) and R.TYPEOF(a) == R.ENVSXP then
+            self.s = a
+        elseif type(a) == "string" then
+            self.s = R.getRegisteredNamespace(a)
+            if self.s == R.NilValue then
+                error("could not find namespace " .. a, 2)
+            end
+        else
+            error("cannot construct R environment from type " .. type(a), 2)
+        end
+        R.PreserveObject(self.s)
+        return self
+    end,
+
+    __gc = function(self)
+        R.ReleaseObject(self.s)
+    end,
+
+    __index = function(self, k)
+        return methods_environment[k]
+    end,
+
+    __newindex = function(self, k, v)
+        error("use :get(k) and :set(k, v) to access environment.", 2)
+    end
+}
+
+luajr.environment = ffi.metatype("environment_t", mt_environment)
+luajr.is_environment = function(obj) return ffi.istype(luajr.environment, obj) end
+
+-- R function type
+-- typedef struct { SEXP s; SEXP cached; } function_t;
+local methods_rfunction = {
+    -- in args table, integer keys are positional 1..#args,
+    -- string keys are named, env defaults to GlobalEnv if nil
+    call = function(self, args, env)
+        return luajr.rcall(self.s, args, env)
+    end
+}
+
+local mt_rfunction = {
+    __new = function(ctype, a, b)
+        local self = ffi.new(ctype)
+        if ffi.istype(R.sexp, a) then
+            local typ = R.TYPEOF(a)
+            if typ == R.CLOSXP or typ == R.SPECIALSXP or typ == R.BUILTINSXP then
+                self.s = a
+            else
+                error("cannot construct R function from SXPTYPE " .. R.type_string(a) .. ".", 2)
+            end
+        elseif type(a) == "string" then
+            local env = luajr.environment(b or R.GlobalEnv)
+            self.s = R.findFun(R.install(a), env.s)
+        else
+            error("cannot construct R function with argument types " .. type(a) ..
+                ", " ..type(b) .. ".", 2)
+        end
+        R.PreserveObject(self.s)
+        self.cached = R.NilValue
+        return self
+    end,
+
+    __gc = function(self)
+        R.ReleaseObject(self.s)
+    end,
+
+    __index = function(self, k)
+        return methods_rfunction[k]
+    end,
+
+    __call = function(self, ...)
+        return luajr.rcall(self.s, {...})
+    end
+}
+
+luajr.rfunction = ffi.metatype("function_t", mt_rfunction)
+luajr.is_rfunction = function(obj) return ffi.istype(luajr.rfunction, obj) end
+
 
 
 -----------------
--- 9. DEBUGGER --
+-- 5. PARALLEL --
+-----------------
+
+-- Query number of cores
+luajr.ncores = function()
+    return internal.luajr_parallel_ncores()
+end
+
+-- Workers type
+-- typedef struct { lua_State** l; int n; } workers_t;
+local methods_workers = {
+    preload = function(self, f, ...)
+        luajr.parallel_load(self, f, ...)
+    end,
+
+    srun = function(self, f, ...)
+        if f ~= nil then self:preload(f, ...) end
+        internal.luajr_parallel_srun(this_state, self)
+    end,
+
+    prun = function(self, f, ...)
+        if f ~= nil then self:preload(f, ...) end
+        internal.luajr_parallel_prun(this_state, self)
+    end,
+
+    pfor = function(self, i0, i1, f, ...)
+        if f ~= nil then self:preload(f, ...) end
+        internal.luajr_parallel_pfor(this_state, self, i0, i1)
+    end,
+
+    close = function(self)
+        if self.l ~= nullptr then
+            internal.luajr_parallel_closeworkers(self)
+        end
+    end
+}
+
+local mt_workers = {
+    __new = function(ctype, n)
+        local self = ffi.new(ctype)
+        if n == nil then
+            self.n = luajr.ncores()
+        elseif type(n) == "number" and n >= 1 then
+            self.n = n
+        else
+            error("worker number must be a positive integer or nil", 2)
+        end
+        internal.luajr_parallel_newworkers(this_state, self)
+        return self
+    end,
+
+    __gc = function(self)
+        self:close()
+    end,
+
+    __index = function(self, k)
+        return methods_workers[k]
+    end,
+
+    __len = function(self)
+        return self.n
+    end
+}
+
+luajr.workers = ffi.metatype("workers_t", mt_workers)
+
+
+
+-----------------
+-- 6. DEBUGGER --
 -----------------
 
 -- Debugger module
@@ -1213,3 +1212,5 @@ function luajr.dbg_step_into(...)
     dbg_queue = { "s", "n" }
     return dbg(...)
 end
+
+
