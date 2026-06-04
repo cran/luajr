@@ -1,3 +1,8 @@
+# luajr 0.3.1
+
+-   Bug fixes: potential memory bugs unearthed by Address Sanitizer and UB 
+    Sanitizer; correct loading R API entry points in R.lua on Fedora.
+
 # luajr 0.3.0
 
 -   Overhauled the args code system in lua_func() for richer capabilities. This 
